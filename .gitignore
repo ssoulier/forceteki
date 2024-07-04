@@ -1,0 +1,12 @@
+bower_components
+node_modules
+public
+typings
+*.log
+server/events.txt
+.DS_Store
+config/local*
+server/logs/*.gz
+build/
+.idea/
+test/json/Card

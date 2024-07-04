@@ -1,0 +1,10 @@
+{
+    lobby: {
+        port: 4000
+    },
+
+    gameNode: {
+        socketioPort: 80,
+        origin: 'http://www.jigoku.online:* https://www.jigoku.online:* '
+    }
+}

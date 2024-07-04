@@ -1,0 +1,9 @@
+{
+    "rules": {
+        "camelcase": 0,
+        "no-invalid-this": 0
+    },
+    "globals": {
+        "integration": true
+    }
+}
