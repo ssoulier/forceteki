@@ -11,7 +11,8 @@
         "esModuleInterop": true,
         "strictBindCallApply": true,
         "skipLibCheck": true,
-        "forceConsistentCasingInFileNames": true
+        "forceConsistentCasingInFileNames": true,
+        "types": ["node"]
     },
     "include": ["server/**/*", "index.js"],
     "exclude": ["test/**/*", "client/**/*"]

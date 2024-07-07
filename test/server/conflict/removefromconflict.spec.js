@@ -1,6 +1,6 @@
-const { Conflict } = require('../../../build/server/game/conflict.js');
-const Player = require('../../../build/server/game/player.js');
-const DrawCard = require('../../../build/server/game/drawcard.js');
+const { Conflict } = require('../../../build/game/conflict.js');
+const Player = require('../../../build/game/player.js');
+const DrawCard = require('../../../build/game/drawcard.js');
 
 describe('Conflict', function () {
     beforeEach(function () {

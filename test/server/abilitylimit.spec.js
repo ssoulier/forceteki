@@ -1,6 +1,6 @@
 const EventEmitter = require('events');
 
-const AbilityLimit = require('../../build/server/game/AbilityLimit.js');
+const AbilityLimit = require('../../build/game/AbilityLimit.js');
 
 describe('AbilityLimit', function () {
     beforeEach(function () {

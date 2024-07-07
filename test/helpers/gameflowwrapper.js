@@ -1,9 +1,9 @@
 /* global jasmine */
 
 const _ = require('underscore');
-const Game = require('../../build/server/game/game.js');
+const Game = require('../../build/game/game.js');
 const PlayerInteractionWrapper = require('./playerinteractionwrapper.js');
-const Settings = require('../../build/server/settings.js');
+const Settings = require('../../build/settings.js');
 
 class GameFlowWrapper {
     constructor() {

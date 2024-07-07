@@ -1,4 +1,4 @@
-const { CostReducer } = require('../../build/server/game/CostReducer');
+const { CostReducer } = require('../../build/game/CostReducer');
 
 describe('CostReducer', function () {
     beforeEach(function () {

@@ -1,4 +1,4 @@
-const { cards } = require('../../../build/server/game/cards');
+const { cards } = require('../../../build/game/cards');
 
 describe('All Cards:', function () {
     beforeEach(function () {

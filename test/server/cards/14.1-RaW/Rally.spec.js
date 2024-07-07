@@ -1,4 +1,4 @@
-const { GameModes } = require('../../../../build/server/GameModes');
+const { GameModes } = require('../../../../build/GameModes');
 
 describe('Rally Keyword', function() {
     integration(function() {

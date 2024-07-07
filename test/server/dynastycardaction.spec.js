@@ -1,4 +1,4 @@
-const DynastyCardAction = require('../../build/server/game/dynastycardaction.js');
+const DynastyCardAction = require('../../build/game/dynastycardaction.js');
 
 describe('DynastyCardAction', function () {
     beforeEach(function() {

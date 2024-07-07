@@ -1,8 +1,8 @@
 const _ = require('underscore');
 
 const { matchCardByNameAndPack } = require('./cardutil.js');
-const { detectBinary } = require('../../build/server/util');
-const { GameModes } = require('../../build/server/GameModes.js');
+const { detectBinary } = require('../../build/util');
+const { GameModes } = require('../../build/GameModes.js');
 
 class PlayerInteractionWrapper {
     constructor(game, player) {
