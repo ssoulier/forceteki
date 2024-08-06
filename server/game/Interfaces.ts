@@ -1,218 +1,186 @@
-import type { AbilityContext } from './AbilityContext';
-import type { TriggeredAbilityContext } from './TriggeredAbilityContext';
-import type { GameAction } from './GameActions/GameAction';
-import type Ring = require('./ring');
-import type BaseCard = require('./basecard');
-import type DrawCard = require('./drawcard');
-import type { ProvinceCard } from './ProvinceCard';
-import type CardAbility = require('./CardAbility');
-import type { DuelProperties } from './GameActions/DuelAction';
-import type { Players, TargetModes, CardTypes, Locations, EventNames, Phases } from './Constants';
-import type { StatusToken } from './StatusToken';
-import type Player = require('./player');
+import type { AbilityContext } from './core/ability/AbilityContext';
+import type { TriggeredAbilityContext } from './core/ability/TriggeredAbilityContext';
+import type { GameSystem } from './core/gameSystem/GameSystem';
+import type Card = require('./core/card/Card');
+import type CardAbility = require('./core/ability/CardAbility');
+import type { IAttackProperties } from './gameSystems/AttackSystem';
+import type { RelativePlayer, TargetMode, CardType, Location, EventName, PhaseName } from './core/Constants';
+// import type { StatusToken } from './StatusToken';
+import type Player = require('./core/Player');
 
-interface BaseTarget {
+interface IBaseTarget {
     activePromptTitle?: string;
-    location?: Locations | Locations[];
-    controller?: ((context: AbilityContext) => Players) | Players;
-    player?: ((context: AbilityContext) => Players) | Players;
+    location?: Location | Location[];
+    controller?: ((context: AbilityContext) => RelativePlayer) | RelativePlayer;
+    player?: ((context: AbilityContext) => RelativePlayer) | RelativePlayer;
     hideIfNoLegalTargets?: boolean;
-    gameAction?: GameAction | GameAction[];
+    gameSystem?: GameSystem | GameSystem[];
 }
 
-interface ChoicesInterface {
-    [propName: string]: ((context: AbilityContext) => boolean) | GameAction | GameAction[];
+interface IChoicesInterface {
+    [propName: string]: ((context: AbilityContext) => boolean) | GameSystem | GameSystem[];
 }
 
-interface TargetSelect extends BaseTarget {
-    mode: TargetModes.Select;
-    choices: (ChoicesInterface | {}) | ((context: AbilityContext) => ChoicesInterface | {});
+interface ITargetSelect extends IBaseTarget {
+    mode: TargetMode.Select;
+    choices: (IChoicesInterface | object) | ((context: AbilityContext) => IChoicesInterface | object);
     condition?: (context: AbilityContext) => boolean;
     targets?: boolean;
 }
 
-interface TargetRing extends BaseTarget {
-    mode: TargetModes.Ring;
-    optional?: boolean;
-    ringCondition: (ring: Ring, context?: AbilityContext) => boolean;
-}
-
-interface TargetAbility extends BaseTarget {
-    mode: TargetModes.Ability;
-    cardType?: CardTypes | CardTypes[];
-    cardCondition?: (card: BaseCard, context?: AbilityContext) => boolean;
+interface ITargetAbility extends IBaseTarget {
+    mode: TargetMode.Ability;
+    cardType?: CardType | CardType[];
+    cardCondition?: (card: Card, context?: AbilityContext) => boolean;
     abilityCondition?: (ability: CardAbility) => boolean;
 }
 
-interface TargetToken extends BaseTarget {
-    mode: TargetModes.Token;
+export interface IInitiateAttack extends IAttackProperties {
+    opponentChoosesAttackTarget?: boolean;
+    opponentChoosesAttacker?: boolean;
+    attackerCondition?: (card: Card, context: TriggeredAbilityContext) => boolean;
+    targetCondition?: (card: Card, context: TriggeredAbilityContext) => boolean;
+}
+
+// interface TargetToken extends BaseTarget {
+//     mode: TargetMode.Token;
+//     optional?: boolean;
+//     location?: Location | Location[];
+//     cardType?: CardType | CardType[];
+//     singleToken?: boolean;
+//     cardCondition?: (card: BaseCard, context?: AbilityContext) => boolean;
+//     tokenCondition?: (token: StatusToken, context?: AbilityContext) => boolean;
+// }
+
+interface IBaseTargetCard extends IBaseTarget {
+    cardType?: CardType | CardType[];
+    location?: Location | Location[];
     optional?: boolean;
-    location?: Locations | Locations[];
-    cardType?: CardTypes | CardTypes[];
-    singleToken?: boolean;
-    cardCondition?: (card: BaseCard, context?: AbilityContext) => boolean;
-    tokenCondition?: (token: StatusToken, context?: AbilityContext) => boolean;
 }
 
-interface TargetElementSymbol extends BaseTarget {
-    mode: TargetModes.ElementSymbol;
-    location?: Locations | Locations[];
-    cardType?: CardTypes | CardTypes[];
-}
-
-interface BaseTargetCard extends BaseTarget {
-    cardType?: CardTypes | CardTypes[];
-    location?: Locations | Locations[];
-    optional?: boolean;
-}
-
-interface TargetCardExactlyUpTo extends BaseTargetCard {
-    mode: TargetModes.Exactly | TargetModes.UpTo;
+interface ITargetCardExactlyUpTo extends IBaseTargetCard {
+    mode: TargetMode.Exactly | TargetMode.UpTo;
     numCards: number;
     sameDiscardPile?: boolean;
 }
 
-interface TargetCardExactlyUpToVariable extends BaseTargetCard {
-    mode: TargetModes.ExactlyVariable | TargetModes.UpToVariable;
+interface ITargetCardExactlyUpToVariable extends IBaseTargetCard {
+    mode: TargetMode.ExactlyVariable | TargetMode.UpToVariable;
     numCardsFunc: (context: AbilityContext) => number;
 }
 
-interface TargetCardMaxStat extends BaseTargetCard {
-    mode: TargetModes.MaxStat;
+interface ITargetCardMaxStat extends IBaseTargetCard {
+    mode: TargetMode.MaxStat;
     numCards: number;
-    cardStat: (card: BaseCard) => number;
+    cardStat: (card: Card) => number;
     maxStat: () => number;
 }
 
-interface TargetCardSingleUnlimited extends BaseTargetCard {
-    mode?: TargetModes.Single | TargetModes.Unlimited;
+interface TargetCardSingleUnlimited extends IBaseTargetCard {
+    mode?: TargetMode.Single | TargetMode.Unlimited;
 }
 
-type TargetCard =
-    | TargetCardExactlyUpTo
-    | TargetCardExactlyUpToVariable
-    | TargetCardMaxStat
+type ITargetCard =
+    | ITargetCardExactlyUpTo
+    | ITargetCardExactlyUpToVariable
+    | ITargetCardMaxStat
     | TargetCardSingleUnlimited
-    | TargetAbility
-    | TargetToken
-    | TargetElementSymbol;
+    | ITargetAbility;
+    // | TargetToken;
 
-interface SubTarget {
+interface ISubTarget {
     dependsOn?: string;
 }
 
-interface ActionCardTarget {
-    cardCondition?: (card: BaseCard, context?: AbilityContext) => boolean;
+interface IActionCardTarget {
+    cardCondition?: (card: Card, context?: AbilityContext) => boolean;
 }
 
-interface ActionRingTarget {
-    ringCondition?: (ring: Ring, context?: AbilityContext) => boolean;
-}
+type IActionTarget = (ITargetCard & IActionCardTarget) | ITargetSelect | ITargetAbility;
 
-type ActionTarget = (TargetCard & ActionCardTarget) | (TargetRing & ActionRingTarget) | TargetSelect | TargetAbility;
-
-interface ActionTargets {
-    [propName: string]: ActionTarget & SubTarget;
-}
-
-export interface InitiateDuel extends DuelProperties {
-    opponentChoosesDuelTarget?: boolean;
-    opponentChoosesChallenger?: boolean;
-    requiresConflict?: boolean;
-    challengerCondition?: (card: DrawCard, context: TriggeredAbilityContext) => boolean;
-    targetCondition?: (card: DrawCard, context: TriggeredAbilityContext) => boolean;
+interface IActionTargets {
+    [propName: string]: IActionTarget & ISubTarget;
 }
 
 type EffectArg =
     | number
     | string
-    | Player
-    | DrawCard
-    | ProvinceCard
-    | Ring
-    | { id: string; label: string; name: string; facedown: boolean; type: CardTypes }
+    | RelativePlayer
+    | Card
+    | { id: string; label: string; name: string; facedown: boolean; type: CardType }
     | EffectArg[];
 
-interface AbilityProps<Context> {
+interface IAbilityProps<Context> {
     title: string;
-    location?: Locations | Locations[];
+    location?: Location | Location[];
     cost?: any;
     limit?: any;
     max?: any;
-    target?: ActionTarget;
-    targets?: ActionTargets;
-    initiateDuel?: InitiateDuel | ((context: AbilityContext) => InitiateDuel);
+    target?: IActionTarget;
+    targets?: IActionTargets;
     cannotBeMirrored?: boolean;
     printedAbility?: boolean;
     cannotTargetFirst?: boolean;
     effect?: string;
     evenDuringDynasty?: boolean;
     effectArgs?: EffectArg | ((context: Context) => EffectArg);
-    gameAction?: GameAction | GameAction[];
+    gameSystem?: GameSystem | GameSystem[];
     handler?: (context?: Context) => void;
     then?: ((context?: AbilityContext) => object) | object;
 }
 
-export interface ActionProps<Source = any> extends AbilityProps<AbilityContext<Source>> {
+export interface IActionProps<Source = any> extends IAbilityProps<AbilityContext<Source>> {
     condition?: (context?: AbilityContext<Source>) => boolean;
-    phase?: Phases | 'any';
-    emeraldWorksInDynsty?: boolean;
+    phase?: PhaseName | 'any';
     /**
      * @deprecated
      */
     anyPlayer?: boolean;
-    conflictProvinceCondition?: (province: ProvinceCard, context: AbilityContext<Source>) => boolean;
-    canTriggerOutsideConflict?: boolean;
 }
 
-interface TriggeredAbilityCardTarget {
-    cardCondition?: (card: BaseCard, context?: TriggeredAbilityContext) => boolean;
-}
-
-interface TriggeredAbilityRingTarget {
-    ringCondition?: (ring: Ring, context?: TriggeredAbilityContext) => boolean;
+interface ITriggeredAbilityCardTarget {
+    cardCondition?: (card: Card, context?: TriggeredAbilityContext) => boolean;
 }
 
 type TriggeredAbilityTarget =
-    | (TargetCard & TriggeredAbilityCardTarget)
-    | (TargetRing & TriggeredAbilityRingTarget)
-    | TargetSelect;
+    | (ITargetCard & ITriggeredAbilityCardTarget)
+    | ITargetSelect;
 
-interface TriggeredAbilityTargets {
-    [propName: string]: TriggeredAbilityTarget & SubTarget & TriggeredAbilityTarget;
+interface ITriggeredAbilityTargets {
+    [propName: string]: TriggeredAbilityTarget & ISubTarget & TriggeredAbilityTarget;
 }
 
 export type WhenType = {
-    [EventName in EventNames]?: (event: any, context?: TriggeredAbilityContext) => boolean;
+    [EventNameValue in EventName]?: (event: any, context?: TriggeredAbilityContext) => boolean;
 };
 
-export interface TriggeredAbilityWhenProps extends AbilityProps<TriggeredAbilityContext> {
+export interface ITriggeredAbilityWhenProps extends IAbilityProps<TriggeredAbilityContext> {
     when: WhenType;
     collectiveTrigger?: boolean;
     anyPlayer?: boolean;
     target?: TriggeredAbilityTarget & TriggeredAbilityTarget;
-    targets?: TriggeredAbilityTargets;
+    targets?: ITriggeredAbilityTargets;
     handler?: (context: TriggeredAbilityContext) => void;
     then?: ((context?: TriggeredAbilityContext) => object) | object;
 }
 
-export interface TriggeredAbilityAggregateWhenProps extends AbilityProps<TriggeredAbilityContext> {
+export interface ITriggeredAbilityAggregateWhenProps extends IAbilityProps<TriggeredAbilityContext> {
     aggregateWhen: (events: any[], context: TriggeredAbilityContext) => boolean;
     collectiveTrigger?: boolean;
     target?: TriggeredAbilityTarget & TriggeredAbilityTarget;
-    targets?: TriggeredAbilityTargets;
+    targets?: ITriggeredAbilityTargets;
     handler?: (context: TriggeredAbilityContext) => void;
     then?: ((context?: TriggeredAbilityContext) => object) | object;
 }
 
-export type TriggeredAbilityProps = TriggeredAbilityWhenProps | TriggeredAbilityAggregateWhenProps;
+export type ITriggeredAbilityProps = ITriggeredAbilityWhenProps | ITriggeredAbilityAggregateWhenProps;
 
-export interface PersistentEffectProps<Source = any> {
-    location?: Locations | Locations[];
+export interface IPersistentEffectProps<Source = any> {
+    location?: Location | Location[];
     condition?: (context: AbilityContext<Source>) => boolean;
-    match?: (card: BaseCard, context?: AbilityContext<Source>) => boolean;
-    targetController?: Players;
-    targetLocation?: Locations;
+    match?: (card: Card, context?: AbilityContext<Source>) => boolean;
+    targetController?: RelativePlayer;
+    targetLocation?: Location;
     effect: Function | Function[];
     createCopies?: boolean;
 }
@@ -221,7 +189,7 @@ export type traitLimit = {
     [trait: string]: number;
 };
 
-export interface AttachmentConditionProps {
+export interface IAttachmentConditionProps {
     limit?: number;
     myControl?: boolean;
     opponentControlOnly?: boolean;
@@ -229,19 +197,7 @@ export interface AttachmentConditionProps {
     faction?: string | string[];
     trait?: string | string[];
     limitTrait?: traitLimit | traitLimit[];
-    cardCondition?: (card: BaseCard) => boolean;
+    cardCondition?: (card: Card) => boolean;
 }
 
-interface HonoredToken {
-    honored: true;
-    card: DrawCard;
-    type: 'token';
-}
-
-interface DishonoredToken {
-    dishonored: true;
-    card: DrawCard;
-    type: 'token';
-}
-
-export type Token = HonoredToken | DishonoredToken;
+// export type Token = HonoredToken | DishonoredToken;

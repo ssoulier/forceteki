@@ -1,18 +1,32 @@
 {
+  "type": "commonjs",
   "scripts": {
     "test": "tsc && npm run jasmine",
-    "jasmine": "JASMINE_CONFIG_PATH=./jasmine.json jasmine",
+    "jasmine": "node --enable-source-maps node_modules/jasmine/bin/jasmine --config=./jasmine.json",
     "lint": "eslint server/ test/server/ --ext=js",
-    "get-cards": "node ./bin/fetchdata.js prod"
+    "get-cards": "node ./bin/fetchdata.js"
   },
   "dependencies": {
+    "@eslint/eslintrc": "^3.1.0",
+    "@eslint/js": "^9.8.0",
+    "@types/eslint__js": "^8.42.3",
+    "@types/jasmine": "^5.1.4",
+    "@types/underscore": "^1.11.15",
     "axios": "^1.7.2",
+    "eslint": "^9.8.0",
+    "eslint-plugin-jasmine": "^4.2.0",
     "events": "^3.3.0",
     "fs": "^0.0.1-security",
+    "globals": "^15.9.0",
     "jasmine": "^5.1.0",
+    "jasmine-spec-reporter": "^7.0.0",
     "jasmine-terminal-reporter": "^1.0.3",
+    "jasmine-ts": "^0.4.0",
     "mkdirp": "^3.0.1",
     "path": "^0.12.7",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.5.4",
+    "typescript-eslint": "^8.0.1",
     "underscore": "^1.13.6",
     "uuid": "^10.0.0",
     "zod": "^3.23.8"
