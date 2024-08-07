@@ -1,6 +1,6 @@
 const _ = require('underscore');
 
-const { detectBinary } = require('../../build/util.js');
+const { detectBinary } = require('../../build/Util.js');
 const { GameMode } = require('../../build/GameMode.js');
 
 class PlayerInteractionWrapper {
@@ -173,9 +173,11 @@ class PlayerInteractionWrapper {
             var card = this.findCardByName(options.card, ['deck', 'hand']);
             // Move card to play
             this.moveCard(card, arenaName);
-            // Set exhausted state
+            // Set exhausted state (false by default)
             if (options.exhausted !== undefined) {
                 options.exhausted ? card.exhaust() : card.ready();
+            } else {
+                card.ready();
             }
             // Activate persistent effects of the card
             //card.applyPersistentEffects();

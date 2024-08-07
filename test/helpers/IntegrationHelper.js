@@ -3,11 +3,12 @@
 
 const _ = require('underscore');
 const { GameMode } = require('../../build/GameMode.js');
+const Contract = require('../../build/game/core/utils/Contract.js');
 
 require('./ObjectFormatters.js');
 
-const DeckBuilder = require('./deckbuilder.js');
-const GameFlowWrapper = require('./gameflowwrapper.js');
+const DeckBuilder = require('./DeckBuilder.js');
+const GameFlowWrapper = require('./GameFlowWrapper.js');
 
 const deckBuilder = new DeckBuilder();
 
@@ -124,6 +125,8 @@ beforeEach(function () {
 global.integration = function (definitions) {
     describe('integration', function () {
         beforeEach(function () {
+            Contract.configureAssertMode(Contract.AssertMode.Assert, true);
+
             this.flow = new GameFlowWrapper();
 
             this.game = this.flow.game;
