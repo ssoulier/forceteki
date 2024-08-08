@@ -47,7 +47,7 @@ describe('Basic attack', function() {
                 this.player1.clickCard(this.cartelSpacer);
                 this.player1.clickCard(this.allianceXWing);
 
-                // attack against base should immediately resolve
+                // attack against base should immediately resolve without prompt for a target, since only one is available
                 expect(this.cartelSpacer.damage).toBe(2);
                 expect(this.cartelSpacer.exhausted).toBe(true);
                 expect(this.allianceXWing.damage).toBe(2);
@@ -58,6 +58,7 @@ describe('Basic attack', function() {
                 this.player1.clickCard(this.wampa);
                 expect(this.player1).toHavePrompt('Choose a target for attack');
 
+                // TODO: test helper for managing attacks
                 // can target opponent's ground units and base but not space units
                 expect(this.player1).toBeAbleToSelect(this.atrt);
                 expect(this.player1).toBeAbleToSelect(this.enfysNest);

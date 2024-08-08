@@ -63,12 +63,15 @@ export enum EffectName {
     CanAttackGroundArenaFromSpaceArena = 'canAttackGroundArenaFromSpaceArena',
     CanAttackSpaceArenaFromGroundArena = 'canAttackSpaceArenaFromGroundArena',
     AddTrait = 'addTrait',
-    LoseTrait = 'loseTrait'
+    LoseTrait = 'loseTrait',
+    DelayedEffect = 'delayedEffect',
+    IncreaseLimitOnAbilities = 'increaseLimitOnAbilities',
 }
 
 export enum Duration {
-    UntilEndOfPhase = 'untilendofphase',
-    UntilEndOfRound = 'untilendofround',
+    UntilEndOfPhase = 'untilEndOfPhase',
+    UntilEndOfRound = 'untilEndOfRound',
+    UntilEndOfAttack = 'untilEndOfAttack',
     Persistent = 'persistent',
     Custom = 'custom'
 }
@@ -76,7 +79,7 @@ export enum Duration {
 export enum Stage {
     Cost = 'cost',
     Effect = 'effect',
-    PreTarget = 'pretarget',
+    PreTarget = 'preTarget',
     Target = 'target'
 }
 
