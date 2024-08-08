@@ -2,12 +2,12 @@ import type { AbilityContext } from '../core/ability/AbilityContext';
 import { CardType, EventName, Location } from '../core/Constants';
 import { isAttackableLocation, isArena } from '../core/utils/EnumHelpers';
 import { Attack } from '../core/attack/Attack';
-import { EffectName } from '../core/Constants'
+import { EffectName } from '../core/Constants';
 import { AttackFlow } from '../core/attack/AttackFlow';
 import type { TriggeredAbilityContext } from '../core/ability/TriggeredAbilityContext';
 import { CardTargetSystem, type ICardTargetSystemProperties } from '../core/gameSystem/CardTargetSystem';
 import { damage } from './GameSystemLibrary.js';
-import type Card from '../core/card/Card';       // TODO: is this the right import form?
+import type Card from '../core/card/Card'; // TODO: is this the right import form?
 import { isArray } from 'underscore';
 
 
@@ -21,35 +21,34 @@ export interface IAttackProperties extends ICardTargetSystemProperties {
 }
 
 export class AttackSystem extends CardTargetSystem<IAttackProperties> {
-    name = 'attack';
-    eventName = EventName.OnAttackDeclared;
-    targetType = [CardType.Unit, CardType.Base];  // TODO: leader?
+    override name = 'attack';
+    override eventName = EventName.OnAttackDeclared;
+    override targetType = [CardType.Unit, CardType.Base]; // TODO: leader?
 
-    defaultProperties: IAttackProperties = {};
+    override defaultProperties: IAttackProperties = {};
 
-    // TODO: maybe rename to "appendProperties" for clarity
-    getProperties(context: AbilityContext, additionalProperties = {}): IAttackProperties {
-        const properties = super.getProperties(context, additionalProperties) as IAttackProperties;
+    override generatePropertiesFromContext(context: AbilityContext, additionalProperties = {}): IAttackProperties {
+        const properties = super.generatePropertiesFromContext(context, additionalProperties) as IAttackProperties;
         if (!properties.attacker) {
             properties.attacker = context.source;
         }
         return properties;
     }
 
-    getEffectMessage(context: AbilityContext): [string, any[]] {
-        const properties = this.getProperties(context);
+    override getEffectMessage(context: AbilityContext): [string, any[]] {
+        const properties = this.generatePropertiesFromContext(context);
         return [
             '{0} initiates attack against {1}',
             [properties.attacker, properties.target]
         ];
     }
 
-    canAffect(targetCard: Card, context: AbilityContext, additionalProperties = {}): boolean {
+    override canAffect(targetCard: Card, context: AbilityContext, additionalProperties = {}): boolean {
         if (!context.player.opponent) {
             return false;
         }
 
-        const properties = this.getProperties(context, additionalProperties);
+        const properties = this.generatePropertiesFromContext(context, additionalProperties);
         if (!super.canAffect(targetCard, context)) {
             return false;
         }
@@ -77,7 +76,7 @@ export class AttackSystem extends CardTargetSystem<IAttackProperties> {
 
     resolveAttack(attack: Attack, context: AbilityContext): void {
         // event for damage dealt to target by attacker
-        let damageEvents = [damage({ amount: attack.attackerTotalPower, isCombatDamage: true }).getEvent(attack.target, context)];
+        const damageEvents = [damage({ amount: attack.attackerTotalPower, isCombatDamage: true }).getEvent(attack.target, context)];
 
         // event for damage dealt to attacker by defender, if any
         if (!attack.targetIsBase) {
@@ -88,13 +87,13 @@ export class AttackSystem extends CardTargetSystem<IAttackProperties> {
     }
 
     attackCosts(prompt, context: AbilityContext, additionalProperties = {}): void {
-        const properties = this.getProperties(context, additionalProperties);
+        const properties = this.generatePropertiesFromContext(context, additionalProperties);
         properties.costHandler(context, prompt);
     }
 
-    // TODO: change form from this to "generateEvents" for clarity
-    addEventsToArray(events: any[], context: AbilityContext, additionalProperties = {}): void {
-        const { target } = this.getProperties(
+    // TODO: change form from this to 'generateEvents' for clarity
+    override addEventsToArray(events: any[], context: AbilityContext, additionalProperties = {}): void {
+        const { target } = this.generatePropertiesFromContext(
             context,
             additionalProperties
         );
@@ -110,12 +109,12 @@ export class AttackSystem extends CardTargetSystem<IAttackProperties> {
         events.push(event);
     }
 
-    addPropertiesToEvent(event, target, context: AbilityContext, additionalProperties): void {
-        const properties = this.getProperties(context, additionalProperties);
+    override addPropertiesToEvent(event, target, context: AbilityContext, additionalProperties): void {
+        const properties = this.generatePropertiesFromContext(context, additionalProperties);
 
         if (isArray(target)) {
             if (target.length !== 1) {
-                context.game.addMessage(`Attack requires exactly one target, cannot attack ${properties.target.length} targets`);
+                context.game.addMessage(`Attack requires exactly one target, cannot attack ${target.length} targets`);
                 return;
             }
 
@@ -138,7 +137,7 @@ export class AttackSystem extends CardTargetSystem<IAttackProperties> {
         const context = event.context;
         const target = event.target;
 
-        const properties = this.getProperties(context, additionalProperties);
+        const properties = this.generatePropertiesFromContext(context, additionalProperties);
         if (
             !isArena(properties.attacker.location) || !isAttackableLocation(target.location)
         ) {
@@ -147,7 +146,7 @@ export class AttackSystem extends CardTargetSystem<IAttackProperties> {
             );
             return;
         }
-        
+
         const attack = event.attack;
         context.game.queueStep(
             new AttackFlow(
@@ -161,7 +160,7 @@ export class AttackSystem extends CardTargetSystem<IAttackProperties> {
         );
     }
 
-    checkEventCondition(event, additionalProperties): boolean {
+    override checkEventCondition(event, additionalProperties): boolean {
         return this.canAffect(event.target, event.context, additionalProperties);
     }
 }

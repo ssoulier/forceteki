@@ -4,7 +4,7 @@ import { Event } from '../core/event/Event';
 import { CardTargetSystem } from '../core/gameSystem/CardTargetSystem';
 import { GameSystem } from '../core/gameSystem/GameSystem';
 import * as GameSystems from '../gameSystems/GameSystemLibrary';
-import { ExecuteHandlerSystem } from '../core/gameSystem/ExecuteHandlerSystem';
+import { ExecuteHandlerSystem } from '../gameSystems/ExecuteHandlerSystem';
 import { IReturnToDeckProperties } from '../gameSystems/ReturnToDeckSystem';
 import { ISelectCardProperties } from '../gameSystems/SelectCardSystem';
 import { TriggeredAbilityContext } from '../core/ability/TriggeredAbilityContext';
@@ -20,12 +20,12 @@ import Player from '../core/Player';
 type SelectCostProperties = Omit<ISelectCardProperties, 'gameSystem'>;
 
 function getSelectCost(
-    action: CardTargetSystem,
+    gameSystem: CardTargetSystem,
     properties: undefined | SelectCostProperties,
     activePromptTitle: string
 ) {
     return new MetaActionCost(
-        GameSystems.selectCard(Object.assign({ gameSystem: action }, properties)),
+        GameSystems.selectCard(Object.assign({ gameSystem: gameSystem }, properties)),
         activePromptTitle
     );
 }
@@ -412,7 +412,7 @@ export function optional(cost: ICost): ICost {
         promptsPlayer: true,
         canPay: () => true,
         getCostMessage: (context: TriggeredAbilityContext) =>
-            context.costs[getActionName(context)] ? cost.getCostMessage(context) : undefined,
+            (context.costs[getActionName(context)] ? cost.getCostMessage(context) : undefined),
         getActionName: getActionName,
         resolve: (context: TriggeredAbilityContext, result) => {
             if (!cost.canPay(context)) {
@@ -425,6 +425,7 @@ export function optional(cost: ICost): ICost {
                 () => {
                     context.costs[actionName] = true;
                 },
+                // eslint-disable-next-line @typescript-eslint/no-empty-function
                 () => {}
             ];
 
@@ -529,7 +530,7 @@ export function nameCard(): ICost {
             return true;
         },
         resolve(context: TriggeredAbilityContext) {
-            let dummyObject = {
+            const dummyObject = {
                 selectCardName: (player, cardName, context) => {
                     context.costs.nameCardCost = cardName;
                     return true;
@@ -546,6 +547,7 @@ export function nameCard(): ICost {
                 }
             });
         },
+        // eslint-disable-next-line @typescript-eslint/no-empty-function
         pay() {}
     };
 }

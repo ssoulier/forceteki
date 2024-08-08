@@ -1,16 +1,14 @@
-import type Player from "../../Player";
-import { UiPrompt } from "./UiPrompt";
+import type Player from '../../Player';
+import { UiPrompt } from './UiPrompt';
 
-export class AllPlayerPrompt extends UiPrompt {
-    activeCondition(player: Player) {
+export abstract class AllPlayerPrompt extends UiPrompt {
+    override activeCondition(player: Player) {
         return !this.completionCondition(player);
     }
 
-    completionCondition(player: Player) {
-        return false;
-    }
+    abstract completionCondition(player: Player): boolean;
 
-    isComplete() {
-        return this.game.getPlayers().every(player => this.completionCondition(player))
+    override isComplete() {
+        return this.game.getPlayers().every((player) => this.completionCondition(player));
     }
 }

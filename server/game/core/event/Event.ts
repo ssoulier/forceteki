@@ -1,11 +1,11 @@
 import type { AbilityContext } from '../ability/AbilityContext';
 import { EventName } from '../Constants';
 
-type Params = {
+interface Params {
     amount: number;
     context: AbilityContext;
     cannotBeCancelled: boolean;
-};
+}
 
 export class Event {
     cancelled = false;
@@ -13,7 +13,7 @@ export class Event {
     context = null;
     window = null;
     replacementEvent = null;
-    condition = (event) => true; 
+    condition = (event) => true;
     order = 0;
     isContingent = false;
     checkFullyResolved = (event) => !event.cancelled;
@@ -26,7 +26,7 @@ export class Event {
         private handler?: (event: Event & Partial<Params>) => void
     ) {
         for (const key in params) {
-            if (params.hasOwnProperty(key)) {
+            if (key in params) {
                 this[key] = params[key];
             }
         }

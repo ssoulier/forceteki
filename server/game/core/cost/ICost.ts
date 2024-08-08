@@ -2,17 +2,17 @@ import { AbilityContext } from '../ability/AbilityContext';
 import { GameSystem } from '../gameSystem/GameSystem';
 import { TriggeredAbilityContext } from '../ability/TriggeredAbilityContext';
 import { Event } from '../event/Event';
-import Player = require('../Player.js');
+import Player from '../Player.js';
 
-export type Result = {
+export interface Result {
     canCancel?: boolean;
     cancelled?: boolean;
-};
+}
 
 export interface ICost {
     canPay(context: AbilityContext): boolean;
 
-    action?: GameSystem;
+    gameSystem?: GameSystem;
     activePromptTitle?: string;
 
     selectCardName?(player: Player, cardName: string, context: AbilityContext): boolean;

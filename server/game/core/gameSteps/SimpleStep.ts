@@ -1,4 +1,4 @@
-import type Game = require('../Game');
+import type Game from '../Game';
 import { BaseStep } from './BaseStep';
 
 export class SimpleStep extends BaseStep {
@@ -6,12 +6,12 @@ export class SimpleStep extends BaseStep {
         super(game);
     }
 
-    continue() {
+    override continue() {
         this.continueFunc();
         return undefined;
     }
 
-    getDebugInfo() {
+    override getDebugInfo() {
         return this.continueFunc.toString();
     }
 }

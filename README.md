@@ -7,7 +7,6 @@ Follow these instructions to get to the point of being able to run the [unit tes
 #### Required Software
 * Git
 * Node.js v22.x
-* TypeScript
 
 ### Install Dependencies
 Use the following instructions to install dependencies and run the unit tests.
@@ -17,17 +16,20 @@ Use the following instructions to install dependencies and run the unit tests.
 npm install
 
 # run once to download card definition files
-npm get-cards
+npm run get-cards
 
 # run this to transpile (build) the code. the 'npm test' command will automatically run this as well.
-tsc
+npx tsc
 
 # runs tsc and executes tests
 npm test
 ```
 
-### IDE for Debugging
-We have a preconfigured [launch.json](.vscode\launch.json) file with debug profiles for use in Visual Studio Code. Just open the repo as a folder in vscode and the profiles should load automatically under "Run and Debug" tab (ctrl + shift + D). See https://code.visualstudio.com/docs/editor/debugging for additional details.
+### VSCode Linting
+We've configured a set of eslint rules to keep the repo looking consistent and help catch potential bugs. To use it, just install the [VSCode ESLint Extension](https://marketplace.visualstudio.com/items?itemName=dbaeumer.vscode-eslint), open the repo as a folder in vscode, and everything should work automatically.
+
+### VSCode Debugging
+We have a preconfigured [launch.json](.vscode\launch.json) file with debug profiles for use in Visual Studio Code. Open the repo as a folder in vscode and the profiles should load automatically under "Run and Debug" tab (ctrl + shift + D). See https://code.visualstudio.com/docs/editor/debugging for additional details.
 
 Once you have vscode set up, use the `Debug All Jasmine Tests` profile or open a specific test file and run `Debug Open Jasmine Test` to run tests with breakpoints, debugging, etc.
 

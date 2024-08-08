@@ -48,6 +48,7 @@ class CardAbility extends CardAbilityStep {
         return defaultedLocation;
     }
 
+    /** @override */
     meetsRequirements(context, ignoredRequirements = []) {
         if (this.card.isBlank() && this.printedAbility) {
             return 'blank';
@@ -85,6 +86,7 @@ class CardAbility extends CardAbilityStep {
         return super.meetsRequirements(context, ignoredRequirements);
     }
 
+    /** @override */
     getCosts(context, playCosts = true, triggerCosts = true) {
         let costs = super.getCosts(context, playCosts);
         if (!context.subResolution && triggerCosts && context.player.anyEffect(EffectName.AdditionalTriggerCost)) {
@@ -131,6 +133,7 @@ class CardAbility extends CardAbilityStep {
         return location;
     }
 
+    /** @override */
     displayMessage(context, messageVerb = context.source.type === CardType.Event ? 'plays' : 'uses') {
         if (
             context.source.type === CardType.Event &&
@@ -142,7 +145,7 @@ class CardAbility extends CardAbilityStep {
                 '{0} plays {1} from {2} {3}',
                 context.player,
                 context.source,
-                context.source.controller === context.player ? 'their' : "their opponent's",
+                context.source.controller === context.player ? 'their' : 'their opponent\'s',
                 this.getLocationMessage(context.source.location, context)
             );
         }
@@ -158,13 +161,15 @@ class CardAbility extends CardAbilityStep {
             this.game.addMessage(this.properties.message, ...messageArgs);
             return;
         }
+
         let origin = context.ability && context.ability.origin;
         // if origin is the same as source then ignore it
         if (origin === context.source) {
             origin = null;
         }
+
         // Player1 plays Assassination
-        let gainedAbility = origin ? "'s gained ability from " : '';
+        let gainedAbility = origin ? '\'s gained ability from ' : '';
         let messageArgs = [context.player, ' ' + messageVerb + ' ', context.source, gainedAbility, origin];
         let costMessages = this.cost
             .map((cost) => {
@@ -177,8 +182,10 @@ class CardAbility extends CardAbilityStep {
                     [format, args] = cost.getCostMessage(context);
                     return { message: this.game.gameChat.formatMessage(format, [card].concat(args)) };
                 }
+                return null;
             })
             .filter((obj) => obj);
+
         if (costMessages.length > 0) {
             // ,
             messageArgs.push(', ');
@@ -187,6 +194,7 @@ class CardAbility extends CardAbilityStep {
         } else {
             messageArgs = messageArgs.concat(['', '']);
         }
+
         let effectMessage = this.properties.effect;
         let effectArgs = [];
         let extraArgs = null;
@@ -217,10 +225,12 @@ class CardAbility extends CardAbilityStep {
         this.game.addMessage('{0}{1}{2}{3}{4}{5}{6}{7}{8}', ...messageArgs);
     }
 
+    /** @override */
     isCardPlayed() {
         return !this.isKeywordAbility() && this.card.getType() === CardType.Event;
     }
 
+    /** @override */
     isTriggeredAbility() {
         return true;
     }

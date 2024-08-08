@@ -49,16 +49,16 @@ export class PlayerPromptState {
         this.buttons = !prompt.buttons
             ? []
             : prompt.buttons.map((button) => {
-                  if (button.card) {
-                      const { card, ...properties } = button;
-                      return Object.assign(
-                          { text: card.name, arg: card.uuid, card: card.getShortSummary() },
-                          properties
-                      );
-                  }
+                if (button.card) {
+                    const { card, ...properties } = button;
+                    return Object.assign(
+                        { text: card.name, arg: card.uuid, card: card.getShortSummary() },
+                        properties
+                    );
+                }
 
-                  return button;
-              });
+                return button;
+            });
     }
 
     cancelPrompt() {
@@ -70,12 +70,10 @@ export class PlayerPromptState {
     }
 
     getCardSelectionState(card: Card) {
-        let selectable = this.selectableCards.includes(card);
-        let index = this.selectedCards?.indexOf(card) ?? -1;
-        let result = {
-            // The `card.selected` property here is a hack for plot selection,
-            // which we do differently from normal card selection.
-            selected: card.selected || index !== -1,
+        const selectable = this.selectableCards.includes(card);
+        const index = this.selectedCards?.indexOf(card) ?? -1;
+        const result = {
+            selected: index !== -1,
             selectable: selectable,
             unselectable: this.selectCard && !selectable
         };

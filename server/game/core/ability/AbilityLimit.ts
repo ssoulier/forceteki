@@ -18,9 +18,7 @@ export interface IAbilityLimit {
 class UnlimitedAbilityLimit implements IAbilityLimit {
     public ability?: CardAbility;
     public currentUser: null | string = null;
-    #useCount = new Map<string, number>();
-
-    constructor() {}
+    private useCount = new Map<string, number>();
 
     public clone() {
         return new UnlimitedAbilityLimit();
@@ -35,23 +33,25 @@ class UnlimitedAbilityLimit implements IAbilityLimit {
     }
 
     public increment(player: Player): void {
-        const key = this.#getKey(player.name);
-        this.#useCount.set(key, this.currentForPlayer(player) + 1);
+        const key = this.getKey(player.name);
+        this.useCount.set(key, this.currentForPlayer(player) + 1);
     }
 
     public reset(): void {
-        this.#useCount.clear();
+        this.useCount.clear();
     }
 
+    // eslint-disable-next-line @typescript-eslint/no-empty-function
     public registerEvents(eventEmitter: EventEmitter): void {}
 
+    // eslint-disable-next-line @typescript-eslint/no-empty-function
     public unregisterEvents(eventEmitter: EventEmitter): void {}
 
     public currentForPlayer(player: Player) {
-        return this.#useCount.get(this.#getKey(player.name)) ?? 0;
+        return this.useCount.get(this.getKey(player.name)) ?? 0;
     }
 
-    #getKey(player: string): string {
+    private getKey(player: string): string {
         if (this.currentUser) {
             return player + this.currentUser;
         }
@@ -62,7 +62,7 @@ class UnlimitedAbilityLimit implements IAbilityLimit {
 class FixedAbilityLimit implements IAbilityLimit {
     public ability?: CardAbility;
     public currentUser: null | string = null;
-    #useCount = new Map<string, number>();
+    private useCount = new Map<string, number>();
 
     constructor(public max: number) {}
 
@@ -75,34 +75,36 @@ class FixedAbilityLimit implements IAbilityLimit {
     }
 
     public isAtMax(player: Player): boolean {
-        return this.currentForPlayer(player) >= this.#getModifiedMax(player);
+        return this.currentForPlayer(player) >= this.getModifiedMax(player);
     }
 
     public increment(player: Player): void {
-        const key = this.#getKey(player.name);
-        this.#useCount.set(key, this.currentForPlayer(player) + 1);
+        const key = this.getKey(player.name);
+        this.useCount.set(key, this.currentForPlayer(player) + 1);
     }
 
     public reset(): void {
-        this.#useCount.clear();
+        this.useCount.clear();
     }
 
+    // eslint-disable-next-line @typescript-eslint/no-empty-function
     public registerEvents(eventEmitter: EventEmitter): void {}
 
+    // eslint-disable-next-line @typescript-eslint/no-empty-function
     public unregisterEvents(eventEmitter: EventEmitter): void {}
 
     public currentForPlayer(player: Player) {
-        return this.#useCount.get(this.#getKey(player.name)) ?? 0;
+        return this.useCount.get(this.getKey(player.name)) ?? 0;
     }
 
-    #getKey(player: string): string {
+    private getKey(player: string): string {
         if (this.currentUser) {
             return player + this.currentUser;
         }
         return player;
     }
 
-    #getModifiedMax(player: Player): number {
+    private getModifiedMax(player: Player): number {
         return this.ability ? this.ability.card.getModifiedLimitMax(player, this.ability, this.max) : this.max;
     }
 }
@@ -115,21 +117,21 @@ class RepeatableAbilityLimit extends FixedAbilityLimit {
         super(max);
     }
 
-    public clone() {
+    public override clone() {
         return new RepeatableAbilityLimit(this.max, this.eventName);
     }
 
-    public isRepeatable(): boolean {
+    public override isRepeatable(): boolean {
         return true;
     }
 
-    public registerEvents(eventEmitter: EventEmitter): void {
+    public override registerEvents(eventEmitter: EventEmitter): void {
         for (const eventN of this.eventName) {
             eventEmitter.on(eventN, () => this.reset());
         }
     }
 
-    public unregisterEvents(eventEmitter: EventEmitter): void {
+    public override unregisterEvents(eventEmitter: EventEmitter): void {
         for (const eventN of this.eventName) {
             eventEmitter.removeListener(eventN, () => this.reset());
         }

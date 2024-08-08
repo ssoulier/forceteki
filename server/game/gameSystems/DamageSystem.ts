@@ -10,21 +10,20 @@ export interface IDamageProperties extends ICardTargetSystemProperties {
 }
 
 export class DamageSystem extends CardTargetSystem<IDamageProperties> {
-    name = 'damage';
-    eventName = EventName.OnDamageDealt;
-    targetType = [CardType.Unit, CardType.Base];
+    override name = 'damage';
+    override eventName = EventName.OnDamageDealt;
+    override targetType = [CardType.Unit, CardType.Base];
 
-    getEffectMessage(context: AbilityContext): [string, any[]] {
-        const { amount, target, isCombatDamage } = this.getProperties(context) as IDamageProperties;
+    override getEffectMessage(context: AbilityContext): [string, any[]] {
+        const { amount, target, isCombatDamage } = this.generatePropertiesFromContext(context) as IDamageProperties;
 
         if (isCombatDamage) {
             return ['deal {1} combat damage to {0}', [amount, target]];
-        } else {
-            return ['deal {1} damage to {0}', [amount, target]];
         }
+        return ['deal {1} damage to {0}', [amount, target]];
     }
 
-    canAffect(card: Card, context: AbilityContext): boolean {
+    override canAffect(card: Card, context: AbilityContext): boolean {
         if (!isAttackableLocation(card.location)) {
             return false;
         }
@@ -34,8 +33,8 @@ export class DamageSystem extends CardTargetSystem<IDamageProperties> {
         return super.canAffect(card, context);
     }
 
-    addPropertiesToEvent(event, card: Card, context: AbilityContext, additionalProperties): void {
-        const { amount, isCombatDamage } = this.getProperties(context, additionalProperties) as IDamageProperties;
+    override addPropertiesToEvent(event, card: Card, context: AbilityContext, additionalProperties): void {
+        const { amount, isCombatDamage } = this.generatePropertiesFromContext(context, additionalProperties) as IDamageProperties;
         super.addPropertiesToEvent(event, card, context, additionalProperties);
         event.damage = amount;
         event.isCombatDamage = isCombatDamage;

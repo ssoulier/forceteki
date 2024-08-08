@@ -12,17 +12,17 @@ export interface IPutIntoPlayProperties extends ICardTargetSystemProperties {
 }
 
 export class PutIntoPlaySystem extends CardTargetSystem {
-    name = 'putIntoPlay';
-    eventName = EventName.OnUnitEntersPlay;
-    cost = 'putting {0} into play';
-    targetType = [CardType.Unit];
-    defaultProperties: IPutIntoPlayProperties = {
+    override name = 'putIntoPlay';
+    override eventName = EventName.OnUnitEntersPlay;
+    override costDescription = 'putting {0} into play';
+    override targetType = [CardType.Unit];
+    override defaultProperties: IPutIntoPlayProperties = {
         controller: RelativePlayer.Self,
         side: null,
         overrideLocation: null
     };
 
-    constructor(
+    public constructor(
         properties: ((context: AbilityContext) => IPutIntoPlayProperties) | IPutIntoPlayProperties
     ) {
         super(properties);
@@ -36,21 +36,21 @@ export class PutIntoPlaySystem extends CardTargetSystem {
         return context.player;
     }
 
-    getEffectMessage(context: AbilityContext): [string, any[]] {
-        let { target } = this.getProperties(context);
+    override getEffectMessage(context: AbilityContext): [string, any[]] {
+        const { target } = this.generatePropertiesFromContext(context);
         return ['put {0} into play', [target]];
     }
 
-    canAffect(card: Card, context: AbilityContext): boolean {
-        let properties = this.getProperties(context) as IPutIntoPlayProperties;
-        let contextCopy = context.copy({ source: card });
-        let player = this.getPutIntoPlayPlayer(contextCopy);
-        let targetSide = properties.side || this.getDefaultSide(contextCopy);
+    override canAffect(card: Card, context: AbilityContext): boolean {
+        const properties = this.generatePropertiesFromContext(context) as IPutIntoPlayProperties;
+        const contextCopy = context.copy({ source: card });
+        const player = this.getPutIntoPlayPlayer(contextCopy);
+        const targetSide = properties.side || this.getDefaultSide(contextCopy);
 
         if (!context || !super.canAffect(card, context)) {
             return false;
         // TODO: smuggle impl here
-        } else if (isArena(card.location) || card.isFacedown()) {
+        } else if (isArena(card.location) || card.facedown) {
             return false;
         // TODO: enums for restrictions instead of raw strings
         } else if (!card.checkRestrictions('putIntoPlay', context)) {
@@ -61,8 +61,8 @@ export class PutIntoPlaySystem extends CardTargetSystem {
         return true;
     }
 
-    addPropertiesToEvent(event, card: Card, context: AbilityContext, additionalProperties): void {
-        let { controller, side, overrideLocation } = this.getProperties(
+    override addPropertiesToEvent(event, card: Card, context: AbilityContext, additionalProperties): void {
+        const { controller, side, overrideLocation } = this.generatePropertiesFromContext(
             context,
             additionalProperties
         ) as IPutIntoPlayProperties;
@@ -73,7 +73,7 @@ export class PutIntoPlaySystem extends CardTargetSystem {
     }
 
     eventHandler(event, additionalProperties = {}): void {
-        let player = this.getPutIntoPlayPlayer(event.context);
+        const player = this.getPutIntoPlayPlayer(event.context);
         event.card.new = true;
         if (event.fate) {
             event.card.fate = event.fate;

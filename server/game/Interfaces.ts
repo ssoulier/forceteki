@@ -1,12 +1,11 @@
 import type { AbilityContext } from './core/ability/AbilityContext';
 import type { TriggeredAbilityContext } from './core/ability/TriggeredAbilityContext';
 import type { GameSystem } from './core/gameSystem/GameSystem';
-import type Card = require('./core/card/Card');
-import type CardAbility = require('./core/ability/CardAbility');
+import type Card from './core/card/Card';
+import type CardAbility from './core/ability/CardAbility';
 import type { IAttackProperties } from './gameSystems/AttackSystem';
 import type { RelativePlayer, TargetMode, CardType, Location, EventName, PhaseName } from './core/Constants';
 // import type { StatusToken } from './StatusToken';
-import type Player = require('./core/Player');
 
 interface IBaseTarget {
     activePromptTitle?: string;
@@ -17,9 +16,7 @@ interface IBaseTarget {
     gameSystem?: GameSystem | GameSystem[];
 }
 
-interface IChoicesInterface {
-    [propName: string]: ((context: AbilityContext) => boolean) | GameSystem | GameSystem[];
-}
+type IChoicesInterface = Record<string, ((context: AbilityContext) => boolean) | GameSystem | GameSystem[]>;
 
 interface ITargetSelect extends IBaseTarget {
     mode: TargetMode.Select;
@@ -98,9 +95,7 @@ interface IActionCardTarget {
 
 type IActionTarget = (ITargetCard & IActionCardTarget) | ITargetSelect | ITargetAbility;
 
-interface IActionTargets {
-    [propName: string]: IActionTarget & ISubTarget;
-}
+type IActionTargets = Record<string, IActionTarget & ISubTarget>;
 
 type EffectArg =
     | number
@@ -132,6 +127,7 @@ interface IAbilityProps<Context> {
 export interface IActionProps<Source = any> extends IAbilityProps<AbilityContext<Source>> {
     condition?: (context?: AbilityContext<Source>) => boolean;
     phase?: PhaseName | 'any';
+
     /**
      * @deprecated
      */
@@ -146,9 +142,7 @@ type TriggeredAbilityTarget =
     | (ITargetCard & ITriggeredAbilityCardTarget)
     | ITargetSelect;
 
-interface ITriggeredAbilityTargets {
-    [propName: string]: TriggeredAbilityTarget & ISubTarget & TriggeredAbilityTarget;
-}
+type ITriggeredAbilityTargets = Record<string, TriggeredAbilityTarget & ISubTarget & TriggeredAbilityTarget>;
 
 export type WhenType = {
     [EventNameValue in EventName]?: (event: any, context?: TriggeredAbilityContext) => boolean;
@@ -181,13 +175,15 @@ export interface IPersistentEffectProps<Source = any> {
     match?: (card: Card, context?: AbilityContext<Source>) => boolean;
     targetController?: RelativePlayer;
     targetLocation?: Location;
+
+    // TODO: can we get a real signature here
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-function-type
     effect: Function | Function[];
+
     createCopies?: boolean;
 }
 
-export type traitLimit = {
-    [trait: string]: number;
-};
+export type traitLimit = Record<string, number>;
 
 export interface IAttachmentConditionProps {
     limit?: number;

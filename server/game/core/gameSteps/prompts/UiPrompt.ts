@@ -1,21 +1,26 @@
 import { v1 as uuid } from 'uuid';
 import type Player from '../../Player';
 import { BaseStep } from '../BaseStep';
+import Contract from '../../utils/Contract';
 
-type ActivePrompt = {
-    buttons: Array<{ text: string; arg?: string; command?: string }>;
+interface ActivePrompt {
+    buttons: { text: string; arg?: string; command?: string }[];
     menuTitle: string;
     promptTitle?: string;
 
-    controls?: Array<{ type: string; source: any; targets: any }>;
+    controls?: { type: string; source: any; targets: any }[];
     selectCard?: boolean;
     selectOrder?: unknown;
     selectRing?: boolean;
-};
+}
 
-export class UiPrompt extends BaseStep {
+export abstract class UiPrompt extends BaseStep {
     public completed = false;
     public uuid = uuid();
+
+    abstract activePrompt(player: Player): ActivePrompt;
+
+    abstract menuCommand(player: Player, arg: string, method: string): boolean;
 
     isComplete(): boolean {
         return this.completed;
@@ -41,13 +46,9 @@ export class UiPrompt extends BaseStep {
         return true;
     }
 
-    activePrompt(player: Player): undefined | ActivePrompt {
-        return undefined;
-    }
-
-    addDefaultCommandToButtons(original?: ActivePrompt) {
-        if (!original) {
-            return;
+    private addDefaultCommandToButtons(original?: ActivePrompt) {
+        if (!Contract.assertNotNullLike(original)) {
+            return null;
         }
 
         const newPrompt = { ...original };
@@ -70,7 +71,7 @@ export class UiPrompt extends BaseStep {
         return { menuTitle: 'Waiting for opponent' };
     }
 
-    public continue(): boolean {
+    public override continue(): boolean {
         const completed = this.isComplete();
 
         if (completed) {
@@ -88,15 +89,11 @@ export class UiPrompt extends BaseStep {
         }
     }
 
-    public onMenuCommand(player: Player, arg: string, uuid: string, method: string): boolean {
+    public override onMenuCommand(player: Player, arg: string, uuid: string, method: string): boolean {
         if (!this.activeCondition(player) || uuid !== this.uuid) {
             return false;
         }
 
         return this.menuCommand(player, arg, method);
-    }
-
-    menuCommand(player: Player, arg: string, method: string): boolean {
-        return true;
     }
 }

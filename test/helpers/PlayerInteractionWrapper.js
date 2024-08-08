@@ -36,73 +36,12 @@ class PlayerInteractionWrapper {
     }
 
     /**
-        Sets the contents of a user's provinces
-        Does not touch the stronghold. Assumed that the stronghold is set during setup.
-        @param {!Object} newProvinceState - new contents of provinces
-        @param {Object} newProvinceState['province 1'] - contents of province 1
-        @param {String|DrawCard} newProvinceState['province 1'].provinceCard - Province card for province 1
-        @param {(String|DrawCard)[]} newProvinceState['province 1'].dynastyCards - list of dynasty cards for province 1
-        @param {Object} newProvinceState['province 2'] - contents of province 2
-        @param {String|DrawCard} newProvinceState['province 2'].provinceCard - Province card for province 2
-        @param {(String|DrawCard)[]} newProvinceState['province 2'].dynastyCards - list of dynasty cards for province 2
-        @param {Object} newProvinceState['province 3'] - contents of province 3
-        @param {String|DrawCard} newProvinceState['province 3'].provinceCard - Province card for province 3
-        @param {(String|DrawCard)[]} newProvinceState['province 3'].dynastyCards - list of dynasty cards for province 3
-        @param {Object} newProvinceState['province 4'] - contents of province 4
-        @param {String|DrawCard} newProvinceState['province 4'].provinceCard - Province card for province 4
-        @param {(String|DrawCard)[]} newProvinceState['province 4'].dynastyCards - list of dynasty cards for province 4
-    */
-    set provinces(newProvinceState) {
-        if (!newProvinceState) {
-            return;
-        }
-        if (_.isArray(newProvinceState)) {
-            var provinceObject = {};
-            // Convert to an object
-            _.each(newProvinceState, (card, index) => {
-                provinceObject[`province ${index + 1}`] = { provinceCard: card };
-            });
-            newProvinceState = provinceObject;
-        }
-        //Move all province cards to province deck
-        var allProvinceLocations = _.keys(this.provinces);
-        _.each(this.provinces, (contents) => {
-            this.moveCard(contents.provinceCard, 'province deck');
-        });
-        //Fill the specified provinces
-        _.each(newProvinceState, (state, location) => {
-            if (!_.contains(allProvinceLocations, location)) {
-                throw new Error(`${location} is not a valid province`);
-            }
-            var provinceCard = state.provinceCard;
-            var dynastyCards = state.dynastyCards;
-            if (provinceCard) {
-                provinceCard = this.mixedListToCardList([provinceCard], 'province deck')[0];
-                this.moveCard(provinceCard, location);
-            }
-            if (dynastyCards) {
-                dynastyCards = this.mixedListToCardList(dynastyCards, 'dynasty deck');
-                // WIP: Not sure if possible to have >1 dynasty card in a province
-                _.each(dynastyCards, (card) => this.placeCardInProvince(card, location));
-            }
-        });
-        //Assign the rest of province cards
-        _.each(this.provinces, (state, location) => {
-            var provinceCard = state.provinceCard;
-            if (!provinceCard) {
-                provinceCard = this.provinceDeck[0];
-                this.moveCard(provinceCard, location);
-            }
-        });
-    }
-
-    /**
      * Gets the player's base card
      */
     get base() {
         return this.player.base;
     }
-    
+
     /**
      * Sets the player's base card
      */
@@ -125,7 +64,7 @@ class PlayerInteractionWrapper {
     get spaceArena() {
         return this.player.filterCardsInPlay((card) => card.location === 'space arena');
     }
-    
+
     set spaceArena(newState = []) {
         this.setArenaUnits('space arena', this.spaceArena, newState);
     }
@@ -158,7 +97,9 @@ class PlayerInteractionWrapper {
      */
     setArenaUnits(arenaName, currentUnitsInArena, newState = []) {
         // First, move all cards in play back to the deck
-        _.each(currentUnitsInArena, (card) => { this.moveCard(card, 'deck'); });
+        _.each(currentUnitsInArena, (card) => {
+            this.moveCard(card, 'deck');
+        });
         // Set up each of the cards
         _.each(newState, (options) => {
             //TODO: Optionally, accept just a string as a parameter???
@@ -435,7 +376,7 @@ class PlayerInteractionWrapper {
 
         if (!promptButton || promptButton.disabled) {
             throw new Error(
-                `Couldn't click on "${text}" for ${this.player.name}. Current prompt is:\n${this.formatPrompt()}`
+                `Couldn't click on '${text}' for ${this.player.name}. Current prompt is:\n${this.formatPrompt()}`
             );
         }
 
@@ -449,7 +390,7 @@ class PlayerInteractionWrapper {
 
         if (currentPrompt.buttons.length <= index) {
             throw new Error(
-                `Couldn't click on Button "${index}" for ${
+                `Couldn't click on Button '${index}' for ${
                     this.player.name
                 }. Current prompt is:\n${this.formatPrompt()}`
             );
@@ -459,7 +400,7 @@ class PlayerInteractionWrapper {
 
         if (!promptButton || promptButton.disabled) {
             throw new Error(
-                `Couldn't click on Button "${index}" for ${
+                `Couldn't click on Button '${index}' for ${
                     this.player.name
                 }. Current prompt is:\n${this.formatPrompt()}`
             );
@@ -480,9 +421,9 @@ class PlayerInteractionWrapper {
 
         if (!promptControl) {
             throw new Error(
-                `Couldn't click card "${cardName}" for ${
+                `Couldn't click card '${cardName}' for ${
                     this.player.name
-                } - unable to find control "${controlName}". Current prompt is:\n${this.formatPrompt()}`
+                } - unable to find control '${controlName}'. Current prompt is:\n${this.formatPrompt()}`
             );
         }
 
@@ -497,7 +438,7 @@ class PlayerInteractionWrapper {
         let availableCards = this.currentActionTargets;
 
         if (!availableCards || availableCards.length < nCardsToChoose) {
-            throw new Error(`Insufficient card targets available for control, expected ${nCardsToChoose} found ${availableCards?.length ?? 0} prompt:\n${this.formatPrompt()}`)
+            throw new Error(`Insufficient card targets available for control, expected ${nCardsToChoose} found ${availableCards?.length ?? 0} prompt:\n${this.formatPrompt()}`);
         }
 
         for (let i = 0; i < nCardsToChoose; i++) {
@@ -531,7 +472,7 @@ class PlayerInteractionWrapper {
         var items = card.getMenu().filter((item) => item.text === menuText);
 
         if (items.length === 0) {
-            throw new Error(`Card ${card.name} does not have a menu item "${menuText}"`);
+            throw new Error(`Card ${card.name} does not have a menu item '${menuText}'`);
         }
 
         this.game.menuItemClick(this.player.name, card.uuid, items[0]);
@@ -576,6 +517,8 @@ class PlayerInteractionWrapper {
         this.game.checkGameState(true);
         this.game.continue();
     }
+
+
     /**
      * Lists the rings claimed by the player as strings
      * @return {String[]} list of ring elements claimed by the player
@@ -625,52 +568,6 @@ class PlayerInteractionWrapper {
         card = this.findCardByName(card, 'province deck');
         this.clickCard(card);
         this.clickPrompt('Done');
-    }
-
-    /**
-     * Bids the specified amount of honor during the draw phase
-     * @param {number} [honoramt = 1] - amount of honor to be bid
-     */
-    bidHonor(honoramt = 1) {
-        if (!_.contains(this.currentButtons, honoramt.toString())) {
-            throw new Error(`${honoramt} is not a valid selection for ${this.name}`);
-        }
-        if (honoramt > this.player.deck.conflictCards.length) {
-            throw new Error(`${this.name} cannot bid ${honoramt}, because they don't have enough cards in the deck`);
-        }
-        this.clickPrompt(honoramt);
-    }
-
-    /**
-     *   Plays a card from provinces during the dynasty phase
-     *   @param {String} card - Name or id of the card to be playersInOrder
-     *   @param {Number} [fate = 0] - number of additional fate to be placed
-     */
-    playFromProvinces(card, fate = 0) {
-        if (!this.canAct) {
-            throw new Error(`${this.name} cannot act`);
-        }
-        if (fate > 4) {
-            throw new Error(`Can't place ${fate} tokens. Currently, up to 4 may be placed`);
-        }
-        if (this.player.deck.dynastyCards.length <= 0) {
-            throw new Error(
-                `${this.name} can't play cards from dynasty, because player has no cards to refill the province with`
-            );
-        }
-        var candidates = this.filterCardsByName(card, 'provinces');
-        //Remove any face-down cards
-        candidates = _.reject(candidates, (card) => card.isFacedown());
-        if (candidates.length === 0) {
-            throw new Error(`${this.name} cannot play the specified card from the provinces`);
-        }
-        card = candidates[0];
-        this.clickCard(card, 'provinces');
-        if (!_.contains(this.currentButtons, fate.toString())) {
-            this.clickPrompt('Cancel');
-            throw new Error(`Player ${this.name} does not have enough fate to place ${fate} tokens.`);
-        }
-        this.clickPrompt(fate);
     }
 
     playAttachment(attachment, target) {

@@ -10,9 +10,9 @@ import Card from '../core/card/Card.js';
 export class TriggerAttackAction extends BaseAction {
     public title = 'Attack';
 
-    // TODO: rename to "gameSystem" or "triggeredSystem" or something and centralize where it is created, since it's also emitted from executeHandler
+    // TODO: rename to 'gameSystem' or 'triggeredSystem' or something and centralize where it is created, since it's also emitted from executeHandler
     public constructor(card: Card) {
-        super(card, [exhaustSelf()], { 
+        super(card, [exhaustSelf()], {
             gameSystem: attack({ attacker: card }),
             mode: TargetMode.AutoSingle,
             location: WildcardLocation.AnyAttackable,
@@ -20,7 +20,7 @@ export class TriggerAttackAction extends BaseAction {
         });
     }
 
-    public meetsRequirements(context = this.createContext(), ignoredRequirements: string[] = []): string {
+    public override meetsRequirements(context = this.createContext(), ignoredRequirements: string[] = []): string {
         if (
             context.game.currentPhase !== PhaseName.Action &&
             !ignoredRequirements.includes('phase')
@@ -41,7 +41,7 @@ export class TriggerAttackAction extends BaseAction {
     }
 
     // attack triggers as an event instead of a game step because it's part of the same action
-    public executeHandler(context: AbilityContext): void {
+    public override executeHandler(context: AbilityContext): void {
         context.game.openEventWindow([
             attack({
                 attacker: context.source

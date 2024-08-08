@@ -8,17 +8,21 @@ const CANCELLED = 'CANCELLED';
 const STOP = 'STOP';
 
 type PoolOption = Card | typeof CANCELLED | typeof STOP;
-type Props = {
+interface Props {
     reducedCost: number;
     minFate?: number;
     maxFate?: number;
     pool?: PoolOption;
     numberOfChoices?: number;
-};
+}
 
 export class AdjustableResourceCost implements ICost {
     public isPlayCost = true;
     public isPrintedResourceCost = true;
+
+    // used for extending this class if any cards have unique after pay hooks
+    protected afterPayHook?: ((event: any) => void) = null;
+
     constructor(public ignoreType: boolean) {}
 
     public canPay(context: AbilityContext): boolean {
@@ -37,7 +41,7 @@ export class AdjustableResourceCost implements ICost {
     }
 
     public resolve(context: AbilityContext, result: Result): void {
-        let availableResources = context.player.countSpendableResources();
+        const availableResources = context.player.countSpendableResources();
         const reducedCost = this.getReducedCost(context);
         if (reducedCost > availableResources) {
             result.cancelled = true;
@@ -49,18 +53,16 @@ export class AdjustableResourceCost implements ICost {
         return context.player.getAdjustedCost(context.playType, context.source, null, this.ignoreType, context.costAspects);
     }
 
-    /**
-     * USED FOR EXTENDING THIS CLASS
-     */
-    protected afterPayHook(event: any): void {}
-
     public payEvent(context: AbilityContext): Event {
         const amount = this.getReducedCost(context);
         context.costs.resources = amount;
         return new Event(EventName.OnSpendResources, { amount, context }, (event) => {
             event.context.player.markUsedAdjusters(context.playType, event.context.source);
             event.context.player.exhaustResources(amount);
-            this.afterPayHook(event);
+
+            if (this.afterPayHook) {
+                this.afterPayHook(event);
+            }
         });
     }
 }

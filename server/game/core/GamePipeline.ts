@@ -1,14 +1,14 @@
-import type Player = require('./Player');
-import type Card = require('./card/Card');
+import type Player from './Player';
+import type Card from './card/Card';
 import type { IStep } from './gameSteps/IStep';
 
 type StepFactory = () => IStep;
 type StepItem = IStep | StepFactory;
 
 export class GamePipeline {
-    // TODO: what is the difference between queue and pipeline?
-    public pipeline: Array<StepItem> = [];
-    public queue: Array<StepItem> = [];
+    // TODO: clearer name for queue
+    public pipeline: StepItem[] = [];
+    public queue: StepItem[] = [];
 
     initialise(steps: StepItem[]): void {
         this.pipeline = steps;
@@ -30,12 +30,11 @@ export class GamePipeline {
         return step;
     }
 
-    // TODO: could we move away from nested pipelines and just have a centralized one?
     queueStep(step: IStep) {
         if (this.pipeline.length === 0) {
             this.pipeline.unshift(step);
         } else {
-            var currentStep = this.getCurrentStep();
+            const currentStep = this.getCurrentStep();
             if (currentStep.queueStep) {
                 currentStep.queueStep(step);
             } else {
@@ -49,7 +48,7 @@ export class GamePipeline {
             return;
         }
 
-        var step = this.getCurrentStep();
+        const step = this.getCurrentStep();
 
         if (step.cancelStep && step.isComplete) {
             step.cancelStep();
@@ -63,7 +62,7 @@ export class GamePipeline {
 
     handleCardClicked(player: Player, card: Card) {
         if (this.pipeline.length > 0) {
-            var step = this.getCurrentStep();
+            const step = this.getCurrentStep();
             if (step.onCardClicked(player, card) !== false) {
                 return true;
             }
@@ -82,7 +81,7 @@ export class GamePipeline {
     }
 
     continue() {
-        this.#queueIntoPipeline();
+        this.queueIntoPipeline();
 
         while (this.pipeline.length > 0) {
             const currentStep = this.getCurrentStep();
@@ -97,12 +96,12 @@ export class GamePipeline {
                 this.pipeline = this.pipeline.slice(1);
             }
 
-            this.#queueIntoPipeline();
+            this.queueIntoPipeline();
         }
         return true;
     }
 
-    #queueIntoPipeline() {
+    private queueIntoPipeline() {
         this.pipeline.unshift(...this.queue);
         this.queue = [];
     }
@@ -119,9 +118,9 @@ export class GamePipeline {
             return step.toString();
         }
 
-        let name = step.constructor.name;
+        const name = step.constructor.name;
         if (step.pipeline) {
-            let result = {};
+            const result = {};
             result[name] = step.pipeline.getDebugInfo();
             return result;
         }

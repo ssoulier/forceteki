@@ -20,11 +20,12 @@ const GameSystems = require('../gameSystems/GameSystemLibrary.js');
 const { Event } = require('./event/Event.js');
 const InitiateCardAbilityEvent = require('./event/InitiateCardAbilityEvent.js');
 const EventWindow = require('./event/EventWindow.js');
-const ThenEventWindow = require('./event/ThenEventWindow.js');
+const AdditionalAbilityStepEventWindow = require('./event/AdditionalAbilityStepEventWindow.js');
 const InitiateAbilityEventWindow = require('./gameSteps/abilityWindow/InitiateAbilityEventWindow.js');
 const AbilityResolver = require('./gameSteps/AbilityResolver.js');
 const SimultaneousEffectWindow = require('./gameSteps/SimultaneousEffectWindow.js');
 const { AbilityContext } = require('./ability/AbilityContext.js');
+const Contract = require('./utils/Contract');
 // const { Conflict } = require('./conflict.js');
 // const ConflictFlow = require('./gamesteps/conflict/conflictflow.js');
 // const MenuCommands = require('./MenuCommands');
@@ -83,6 +84,8 @@ class Game extends EventEmitter {
 
         this.router = options.router;
     }
+
+
     /*
      * Reports errors from the game engine back to the router
      * @param {type} e
@@ -98,7 +101,7 @@ class Game extends EventEmitter {
      * @param {Array} args to match the references in @string
      */
     addMessage() {
-        // @ts-ignore
+        // @ts-expect-error
         this.gameChat.addMessage(...arguments);
     }
 
@@ -109,7 +112,7 @@ class Game extends EventEmitter {
      * @param {Array} args to match the references in @string
      */
     addAlert() {
-        // @ts-ignore
+        // @ts-expect-error
         this.gameChat.addAlert(...arguments);
     }
 
@@ -149,10 +152,16 @@ class Game extends EventEmitter {
      * @returns {Player}
      */
     getPlayerByName(playerName) {
-        let player = this.playersAndSpectators[playerName];
-        if (player && !this.isSpectator(player)) {
-            return player;
+        if (!Contract.assertHasProperty(this.playersAndSpectators, playerName)) {
+            return null;
         }
+
+        let player = this.playersAndSpectators[playerName];
+        if (!Contract.assertFalse(this.isSpectator(player), `Player ${playerName} is a spectator`)) {
+            return null;
+        }
+
+        return player;
     }
 
     /**
@@ -354,21 +363,22 @@ class Game extends EventEmitter {
         this.pipeline.handleCardClicked(player, card);
     }
 
-    facedownCardClicked(playerName, location, controllerName, isProvince = false) {
-        let player = this.getPlayerByName(playerName);
-        let controller = this.getPlayerByName(controllerName);
-        if (!player || !controller) {
-            return;
-        }
-        let list = controller.getSourceListForPile(location);
-        if (!list) {
-            return;
-        }
-        let card = list.find((card) => !isProvince === !card.isProvince);
-        if (card) {
-            return this.pipeline.handleCardClicked(player, card);
-        }
-    }
+    // TODO: implementation of this for smuggle
+    // facedownCardClicked(playerName, location, controllerName, isProvince = false) {
+    //     let player = this.getPlayerByName(playerName);
+    //     let controller = this.getPlayerByName(controllerName);
+    //     if (!player || !controller) {
+    //         return;
+    //     }
+    //     let list = controller.getSourceListForPile(location);
+    //     if (!list) {
+    //         return;
+    //     }
+    //     let card = list.find((card) => !isProvince === !card.isProvince);
+    //     if (card) {
+    //         return this.pipeline.handleCardClicked(player, card);
+    //     }
+    // }
 
     // /**
     //  * This function is called by the client when a card menu item is clicked
@@ -848,12 +858,12 @@ class Game extends EventEmitter {
         return this.queueStep(new EventWindow(this, events));
     }
 
-    openThenEventWindow(events) {
+    openAdditionalAbilityStepEventWindow(events) {
         if (this.currentEventWindow) {
             if (!_.isArray(events)) {
                 events = [events];
             }
-            return this.queueStep(new ThenEventWindow(this, events));
+            return this.queueStep(new AdditionalAbilityStepEventWindow(this, events));
         }
         return this.openEventWindow(events);
     }

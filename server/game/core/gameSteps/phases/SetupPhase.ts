@@ -39,10 +39,7 @@ export class SetupPhase extends Phase {
     }
 
     chooseFirstPlayer() {
-        const coinTossWinner = randomItem(this.game.getPlayers());
-        if (coinTossWinner) {
-            var firstPlayer = coinTossWinner;
-        }
+        const firstPlayer = randomItem(this.game.getPlayers());
 
         this.game.promptWithHandlerMenu(firstPlayer, {
             activePromptTitle: 'You won the flip. Do you want to start with initiative:',
@@ -60,7 +57,7 @@ export class SetupPhase extends Phase {
     }
 
     chooseMulligan() {
-        let playersByInitiative = [this.game.initiativePlayer, this.game.initiativePlayer.opponent];
+        const playersByInitiative = [this.game.initiativePlayer, this.game.initiativePlayer.opponent];
         for (const player of playersByInitiative) {
             this.game.promptWithHandlerMenu(player, {
                 activePromptTitle: 'Do you want to mulligan your hand?',
@@ -68,7 +65,7 @@ export class SetupPhase extends Phase {
                 choices: ['Yes', 'No'],
                 handlers: [
                     () => {
-                        for(const card of player.hand) {
+                        for (const card of player.hand) {
                             player.moveCard(card, 'deck bottom');
                         }
 
@@ -80,10 +77,10 @@ export class SetupPhase extends Phase {
                         this.game.addMessage('{0} has not mulliganed', player);
                     }
                 ]
-            })
+            });
         }
     }
-    
+
     drawStartingHands() {
         for (const player of this.game.getPlayers()) {
             player.shuffleDeck();

@@ -1,10 +1,10 @@
 import { GamePipeline } from '../GamePipeline';
 import { BaseStep } from './BaseStep';
 import type { IStep } from './IStep';
-import type Card = require('../card/Card');
-import type Player = require('../Player');
+import type Card from '../card/Card';
+import type Player from '../Player';
 
-export class BaseStepWithPipeline extends BaseStep implements IStep {
+export abstract class BaseStepWithPipeline extends BaseStep implements IStep {
     pipeline = new GamePipeline();
 
     queueStep(step: IStep) {
@@ -15,11 +15,11 @@ export class BaseStepWithPipeline extends BaseStep implements IStep {
         return this.pipeline.length === 0;
     }
 
-    onCardClicked(player: Player, card: Card): boolean {
+    override onCardClicked(player: Player, card: Card): boolean {
         return this.pipeline.handleCardClicked(player, card);
     }
 
-    onMenuCommand(player: Player, arg: string, uuid: string, method: string) {
+    override onMenuCommand(player: Player, arg: string, uuid: string, method: string) {
         return this.pipeline.handleMenuCommand(player, arg, uuid, method);
     }
 
@@ -27,7 +27,7 @@ export class BaseStepWithPipeline extends BaseStep implements IStep {
         this.pipeline.cancelStep();
     }
 
-    continue() {
+    override continue() {
         try {
             return this.pipeline.continue();
         } catch (e) {

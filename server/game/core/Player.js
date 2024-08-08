@@ -57,7 +57,7 @@ class Player extends GameObject {
         this.additionalPiles = {};
         this.canTakeActionsThisPhase = null;
 
-        // TODO: per the rules, leader and base are both in the same "base zone"
+        // TODO: per the rules, leader and base are both in the same 'base zone'
         this.baseZone = _([]);
         this.leaderZone = _([]);
 
@@ -203,8 +203,8 @@ class Player extends GameObject {
      * @param {Function} predicate - BaseCard => Boolean
      */
     findCards(cardList, predicate) {
-        if (!cardList) {
-            return;
+        if (!Contract.assertNotNullLike(cardList)) {
+            return null;
         }
 
         var cardsToReturn = [];
@@ -544,13 +544,13 @@ class Player extends GameObject {
     //     let action = GameSystems.loseHonor({ amount: this.game.gameMode === GameMode.Skirmish ? 3 : 5 });
     //     if (action.canAffect(this, this.game.getFrameworkContext())) {
     //         this.game.addMessage(
-    //             "{0}'s {1} deck has run out of cards, so they lose {2} honor",
+    //             '{0}'s {1} deck has run out of cards, so they lose {2} honor',
     //             this,
     //             deck,
     //             this.game.gameMode === GameMode.Skirmish ? 3 : 5
     //         );
     //     } else {
-    //         this.game.addMessage("{0}'s {1} deck has run out of cards", this, deck);
+    //         this.game.addMessage('{0}'s {1} deck has run out of cards', this, deck);
     //     }
     //     action.resolve(this, this.game.getFrameworkContext());
     //     this.game.queueSimpleStep(() => {
@@ -675,8 +675,8 @@ class Player extends GameObject {
     }
 
     addPlayableLocation(type, player, location, cards = []) {
-        if (!player) {
-            return;
+        if (!Contract.assertNotNullLike(player)) {
+            return null;
         }
         let playableLocation = new PlayableLocation(type, player, location, new Set(cards));
         this.playableLocations.push(playableLocation);
@@ -754,7 +754,7 @@ class Player extends GameObject {
         for (const aspect of penaltyAspects) {
             aspectPenaltiesTotal += this.runAdjustersForCostType(playingType, 2, card, target, ignoreType, aspect);
         }
-        
+
         let penalizedCost = card.getCost() + aspectPenaltiesTotal;
         return this.runAdjustersForCostType(playingType, penalizedCost, card, target, ignoreType);
     }
@@ -1081,14 +1081,14 @@ class Player extends GameObject {
      * Returns the number of resources available to spend
      */
     countSpendableResources() {
-        return this.resources.value().reduce((count, card) => count += !card.exhausted, 0)
+        return this.resources.value().reduce((count, card) => count += !card.exhausted, 0);
     }
 
     /**
      * Returns the number of resources available to spend
      */
     countExhaustedResources() {
-        return this.resources.value().reduce((count, card) => count += card.exhausted, 0)
+        return this.resources.value().reduce((count, card) => count += card.exhausted, 0);
     }
 
     /**
@@ -1098,14 +1098,14 @@ class Player extends GameObject {
      */
     resourceCard(card, exhaust = false) {
         this.moveCard(card, Location.Resource);
-        card.exhausted = !exhaust
+        card.exhausted = !exhaust;
     }
 
     /**
      * Exhaust the specified number of resources
      */
     exhaustResources(count) {
-        let readyResources = this.resources.filter(card => !card.exhausted);
+        let readyResources = this.resources.filter((card) => !card.exhausted);
         for (let i = 0; i < Math.min(count, readyResources.length); i++) {
             readyResources[i].exhausted = true;
         }
@@ -1142,6 +1142,7 @@ class Player extends GameObject {
         var targetPile = this.getSourceListForPile(targetLocation);
 
         if (!this.isLegalLocationForCard(card, targetLocation) || (targetPile && targetPile.contains(card))) {
+            Contract.fail(`Tried to move card ${card.name} to ${targetLocation} but it is not a legal location`);
             return;
         }
 
