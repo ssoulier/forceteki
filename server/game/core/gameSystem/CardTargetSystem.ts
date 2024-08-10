@@ -11,7 +11,9 @@ export interface ICardTargetSystemProperties extends IGameSystemProperties {
 /**
  * A {@link GameSystem} which targets a card or cards for its effect
  */
-export abstract class CardTargetSystem<P extends ICardTargetSystemProperties = ICardTargetSystemProperties> extends GameSystem<P> {
+// UP NEXT: mixin for Action types (CardAction, PlayerAction)?
+// TODO: could we remove the default generic parameter so that all child classes are forced to declare it
+export abstract class CardTargetSystem<TProperties extends ICardTargetSystemProperties = ICardTargetSystemProperties> extends GameSystem<TProperties> {
     override targetType = [
         CardType.Unit,
         CardType.Upgrade,
@@ -132,10 +134,11 @@ export abstract class CardTargetSystem<P extends ICardTargetSystemProperties = I
         return event.card === card && super.isEventFullyResolved(event, card, context, additionalProperties);
     }
 
-    updateLeavesPlayEvent(event, card: Card, context: AbilityContext, additionalProperties): void {
+    protected updateLeavesPlayEvent(event, card: Card, context: AbilityContext, additionalProperties): void {
         const properties = this.generatePropertiesFromContext(context, additionalProperties) as any;
         super.updateEvent(event, card, context, additionalProperties);
         event.destination = Location.Discard;
+        // TODO: the L5R 'ancestral' keyword behaves exactly like Gar's deployed ability, we can reuse this code for him
         // event.preResolutionEffect = () => {
         //     event.cardStateWhenLeftPlay = event.card.createSnapshot();
         //     if (event.card.isAncestral() && event.isContingent) {
@@ -149,6 +152,8 @@ export abstract class CardTargetSystem<P extends ICardTargetSystemProperties = I
         // };
         event.createContingentEvents = () => {
             const contingentEvents = [];
+
+            // TODO UPGRADES: uncomment below code
             // Add an imminent triggering condition for all attachments leaving play
 
             // for (const attachment of (event.card.attachments ?? []) as BaseCard[]) {
@@ -170,7 +175,7 @@ export abstract class CardTargetSystem<P extends ICardTargetSystemProperties = I
         };
     }
 
-    leavesPlayEventHandler(event, additionalProperties = {}): void {
+    protected leavesPlayEventHandler(event, additionalProperties = {}): void {
         if (!event.card.owner.isLegalLocationForCard(event.card, event.destination)) {
             event.card.game.addMessage(
                 '{0} is not a legal location for {1} and it is discarded',

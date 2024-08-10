@@ -257,21 +257,20 @@ class Game extends EventEmitter {
         return this.allCards.filter(predicate);
     }
 
-    // /**
-    //  * Returns all cards (i.e. characters) which matching the passed predicated
-    //  * function from either players 'in play' area.
-    //  * @param {Function} predicate - card => Boolean
-    //  * @returns {Array} Array of DrawCard objects
-    //  */
-    // findAnyCardsInPlay(predicate) {
-    //     var foundCards = [];
+    /**
+     * Returns all cards which matching the passed predicated function from either players arenas
+     * @param {Function} predicate - card => Boolean
+     * @returns {Array} Array of DrawCard objects
+     */
+    findAnyCardsInPlay(predicate) {
+        var foundCards = [];
 
-    //     _.each(this.getPlayers(), (player) => {
-    //         foundCards = foundCards.concat(player.findCards(player.cardsInPlay, predicate));
-    //     });
+        _.each(this.getPlayers(), (player) => {
+            foundCards = foundCards.concat(player.findCards(player.getCardsInPlay(), predicate));
+        });
 
-    //     return foundCards;
-    // }
+        return foundCards;
+    }
 
     /**
      * Returns if a card is in play (characters, attachments, provinces, holdings) that has the passed trait
@@ -713,7 +712,6 @@ class Game extends EventEmitter {
                 []
             )
         );
-        this.provinceCards = this.allCards.filter((card) => card.isProvince);
 
         // if (this.gameMode !== GameMode.Skirmish) {
         //     if (playerWithNoStronghold) {
@@ -1065,6 +1063,7 @@ class Game extends EventEmitter {
         this.addMessage('{0} has reconnected', player);
     }
 
+    // UP NEXT: rename this to something that makes it clearer that it's needed for updating effect state
     checkGameState(hasChanged = false, events = []) {
         // check for a game state change (recalculating attack stats if necessary)
         if (
@@ -1094,60 +1093,50 @@ class Game extends EventEmitter {
         this.pipeline.continue();
     }
 
-    formatDeckForSaving(deck) {
-        var result = {
-            faction: {},
-            conflictCards: [],
-            dynastyCards: [],
-            provinceCards: [],
-            stronghold: undefined,
-            role: undefined
-        };
+    // formatDeckForSaving(deck) {
+    //     var result = {
+    //         faction: {},
+    //         conflictCards: [],
+    //         dynastyCards: [],
+    //         stronghold: undefined,
+    //         role: undefined
+    //     };
 
-        //faction
-        result.faction = deck.faction;
+    //     //faction
+    //     result.faction = deck.faction;
 
-        //conflict
-        deck.conflictCards.forEach((cardData) => {
-            if (cardData && cardData.card) {
-                result.conflictCards.push(`${cardData.count}x ${cardData.card.id}`);
-            }
-        });
+    //     //conflict
+    //     deck.conflictCards.forEach((cardData) => {
+    //         if (cardData && cardData.card) {
+    //             result.conflictCards.push(`${cardData.count}x ${cardData.card.id}`);
+    //         }
+    //     });
 
-        //dynasty
-        deck.dynastyCards.forEach((cardData) => {
-            if (cardData && cardData.card) {
-                result.dynastyCards.push(`${cardData.count}x ${cardData.card.id}`);
-            }
-        });
+    //     //dynasty
+    //     deck.dynastyCards.forEach((cardData) => {
+    //         if (cardData && cardData.card) {
+    //             result.dynastyCards.push(`${cardData.count}x ${cardData.card.id}`);
+    //         }
+    //     });
 
-        //provinces
-        if (deck.provinceCards) {
-            deck.provinceCards.forEach((cardData) => {
-                if (cardData && cardData.card) {
-                    result.provinceCards.push(cardData.card.id);
-                }
-            });
-        }
+    //     //stronghold & role
+    //     if (deck.stronghold) {
+    //         deck.stronghold.forEach((cardData) => {
+    //             if (cardData && cardData.card) {
+    //                 result.stronghold = cardData.card.id;
+    //             }
+    //         });
+    //     }
+    //     if (deck.role) {
+    //         deck.role.forEach((cardData) => {
+    //             if (cardData && cardData.card) {
+    //                 result.role = cardData.card.id;
+    //             }
+    //         });
+    //     }
 
-        //stronghold & role
-        if (deck.stronghold) {
-            deck.stronghold.forEach((cardData) => {
-                if (cardData && cardData.card) {
-                    result.stronghold = cardData.card.id;
-                }
-            });
-        }
-        if (deck.role) {
-            deck.role.forEach((cardData) => {
-                if (cardData && cardData.card) {
-                    result.role = cardData.card.id;
-                }
-            });
-        }
-
-        return result;
-    }
+    //     return result;
+    // }
 
     // /*
     //  * This information is all logged when a game is won

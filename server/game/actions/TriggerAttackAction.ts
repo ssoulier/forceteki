@@ -1,16 +1,19 @@
 import type { AbilityContext } from '../core/ability/AbilityContext.js';
-import BaseAction from '../core/ability/PlayerAction.js';
+import PlayerAction from '../core/ability/PlayerAction.js';
 import { EffectName, EventName, Location, PhaseName, PlayType, TargetMode, WildcardLocation } from '../core/Constants.js';
 import { isArena } from '../core/utils/EnumHelpers.js';
 import { exhaustSelf } from '../costs/CostLibrary.js';
 import { attack } from '../gameSystems/GameSystemLibrary.js';
 import type Player from '../core/Player.js';
 import Card from '../core/card/Card.js';
+import { unlimited } from '../core/ability/AbilityLimit.js';
 
-export class TriggerAttackAction extends BaseAction {
-    public title = 'Attack';
+export class TriggerAttackAction extends PlayerAction {
+    title = 'Attack';
 
-    // TODO: rename to 'gameSystem' or 'triggeredSystem' or something and centralize where it is created, since it's also emitted from executeHandler
+    // UP NEXT: this is a hack to get this to behave like a regular card ability for testing
+    limit = unlimited();
+
     public constructor(card: Card) {
         super(card, [exhaustSelf()], {
             gameSystem: attack({ attacker: card }),

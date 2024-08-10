@@ -1,6 +1,5 @@
 import AbilityDsl from '../../AbilityDsl';
 import Card from '../../core/card/Card';
-import { CardType } from '../../core/Constants';
 
 export default class GroguIrresistible extends Card {
     protected override getImplementationId() {
@@ -11,7 +10,7 @@ export default class GroguIrresistible extends Card {
     }
 
     override setupCardAbilities() {
-        this.action({
+        this.actionAbility({
             title: 'Exhaust an enemy unit',
             cost: AbilityDsl.costs.exhaustSelf(),
             target: {
@@ -21,3 +20,5 @@ export default class GroguIrresistible extends Card {
         });
     }
 }
+
+GroguIrresistible.implemented = true;

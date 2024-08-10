@@ -112,9 +112,13 @@ class Player extends GameObject {
         this.clock.reset();
     }
 
-    // TODO: does this / should this return upgrades?
+    // TODO: this should get upgrades, but we need to confirm once they're implemented
     getCardsInPlay() {
         return _(this.spaceArena.value().concat(this.groundArena.value()));
+    }
+
+    getUnitsInPlay(cardCondition = (card) => true) {
+        return this.getCardsInPlay().filter((card) => card.type === CardType.Unit && cardCondition(card));
     }
 
     /**
@@ -634,8 +638,9 @@ class Player extends GameObject {
         this.preparedDeck = preparedDeck;
         this.deck.each((card) => {
             // register event reactions in case event-in-deck bluff window is enabled
+            // TODO: probably we need to do this differently since we have actual reactions on our events
             if (card.type === CardType.Event) {
-                for (let reaction of card.abilities.reactions) {
+                for (let reaction of card.abilities.triggeredAbilities) {
                     reaction.registerEvents();
                 }
             }
@@ -726,22 +731,26 @@ class Player extends GameObject {
      */
     getMinimumPossibleCost(playingType, context, target, ignoreType = false) {
         const card = context.source;
-        let adjustedCost = this.getAdjustedCost(playingType, card, target, ignoreType, context.costAspects);
-        let triggeredCostAdjusters = 0;
-        let fakeWindow = { addChoice: () => triggeredCostAdjusters++ };
-        let fakeEvent = this.game.getEvent(EventName.OnCardPlayed, { card: card, player: this, context: context });
-        this.game.emit(EventName.OnCardPlayed + ':' + AbilityType.Interrupt, fakeEvent, fakeWindow);
-        let fakeResolverEvent = this.game.getEvent(EventName.OnAbilityResolverInitiated, {
-            card: card,
-            player: this,
-            context: context
-        });
-        this.game.emit(
-            EventName.OnAbilityResolverInitiated + ':' + AbilityType.Interrupt,
-            fakeResolverEvent,
-            fakeWindow
-        );
-        return Math.max(adjustedCost - triggeredCostAdjusters, 0);
+        const adjustedCost = this.getAdjustedCost(playingType, card, target, ignoreType, context.costAspects);
+
+        // TODO: not sure yet if we need this code, I think it's checking to see if any potential interrupts would create additional cost
+        // let triggeredCostAdjusters = 0;
+        // let fakeWindow = { addChoice: () => triggeredCostAdjusters++ };
+        // let fakeEvent = this.game.getEvent(EventName.OnCardPlayed, { card: card, player: this, context: context });
+        // this.game.emit(EventName.OnCardPlayed + ':' + AbilityType.Interrupt, fakeEvent, fakeWindow);
+        // let fakeResolverEvent = this.game.getEvent(EventName.OnAbilityResolverInitiated, {
+        //     card: card,
+        //     player: this,
+        //     context: context
+        // });
+        // this.game.emit(
+        //     EventName.OnAbilityResolverInitiated + ':' + AbilityType.Interrupt,
+        //     fakeResolverEvent,
+        //     fakeWindow
+        // );
+        // return Math.max(adjustedCost - triggeredCostAdjusters, 0);
+
+        return Math.max(adjustedCost, 0);
     }
 
     /**
@@ -759,7 +768,7 @@ class Player extends GameObject {
             aspectPenaltiesTotal += this.runAdjustersForCostType(playingType, 2, card, target, ignoreType, aspect);
         }
 
-        let penalizedCost = card.getCost() + aspectPenaltiesTotal;
+        let penalizedCost = card.cost + aspectPenaltiesTotal;
         return this.runAdjustersForCostType(playingType, penalizedCost, card, target, ignoreType);
     }
 
@@ -1211,6 +1220,12 @@ class Player extends GameObject {
             let updatedPile = this.removeCardByUuid(originalPile, card.uuid);
 
             switch (originalLocation) {
+                case Location.SpaceArena:
+                    this.spaceArena = updatedPile;
+                    break;
+                case Location.GroundArena:
+                    this.groundArena = updatedPile;
+                    break;
                 case Location.Hand:
                     this.hand = updatedPile;
                     break;
@@ -1222,6 +1237,9 @@ class Player extends GameObject {
                     break;
                 case Location.RemovedFromGame:
                     this.removedFromGame = updatedPile;
+                    break;
+                case Location.Leader:
+                    this.leaderZone = updatedPile;
                     break;
                 default:
                     if (this.additionalPiles[originalPile]) {

@@ -18,7 +18,7 @@ export enum WildcardLocation {
     AnyAttackable = 'any attackable'
 }
 
-export type TargetableLocation = Location | WildcardLocation;
+export type LocationFilter = Location | WildcardLocation;
 
 export enum PlayType {
     PlayFromHand = 'playFromHand',
@@ -42,8 +42,6 @@ export enum EffectName {
     Blank = 'blank',
     AddKeyword = 'addKeyword',
     LoseKeyword = 'loseKeyword',
-    CopyCharacter = 'copyCharacter',    // currently unused
-    GainAbility = 'gainAbility',
     CanBeTriggeredByOpponent = 'canBeTriggeredByOpponent',
     UnlessActionCost = 'unlessActionCost',
     MustBeChosen = 'mustBeChosen',
@@ -53,11 +51,11 @@ export enum EffectName {
     AdditionalTriggerCost = 'additionalTriggercost',
     AdditionalPlayCost = 'additionalPlaycost',
     ModifyStats = 'modifyStats',
-    ModifyPower = 'modifyPower',    // currently unused
-    SetBasePower = 'setBasePower',  // currently unused
-    SetPower = 'setPower',          // currently unused
-    CalculatePrintedPower = 'calculatePrintedPower',    // currently unused
-    ModifyHp = 'modifyHp',      // currently unused
+    ModifyPower = 'modifyPower',
+    SetBasePower = 'setBasePower',
+    SetPower = 'setPower',
+    CalculatePrintedPower = 'calculatePrintedPower',
+    ModifyHp = 'modifyHp',
     UpgradePowerModifier = 'upgradePowerModifier',
     UpgradeHpModifier = 'upgradeHpModifier',
     CanAttackGroundArenaFromSpaceArena = 'canAttackGroundArenaFromSpaceArena',
@@ -66,6 +64,9 @@ export enum EffectName {
     LoseTrait = 'loseTrait',
     DelayedEffect = 'delayedEffect',
     IncreaseLimitOnAbilities = 'increaseLimitOnAbilities',
+    LoseAllNonKeywordAbilities = 'loseAllNonKeywordAbilities',
+    CannotApplyLastingEffects = 'cannotApplyLastingEffects',
+    CannotBeAttacked = 'cannotBeAttacked'
 }
 
 export enum Duration {
@@ -152,15 +153,11 @@ export enum EventName {
     OnAttackDeclared = 'onAttackDeclared',
     OnDamageDealt = 'onDamageDealt',
     OnAttackCompleted = 'onAttackCompleted',
+    OnCardReturnedToHand = 'onCardReturnedToHand',
 }
 
 export enum AbilityType {
     Action = 'action',
-    WouldInterrupt = 'cancelInterrupt',
-    ForcedInterrupt = 'forcedInterrupt',
-    KeywordInterrupt = 'keywordInterrupt',
-    Interrupt = 'interrupt',
-    KeywordReaction = 'keywordReaction',
     ForcedReaction = 'forcedReaction',
     Reaction = 'reaction',
     Persistent = 'persistent',

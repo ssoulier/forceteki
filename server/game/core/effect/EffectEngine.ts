@@ -11,6 +11,7 @@ interface ICustomDurationEvent {
     effect: Effect;
 }
 
+// UP NEXT: rename "Effect" to "OngoingEffect"
 export class EffectEngine {
     events: EventRegistrar;
     effects: Effect[] = [];
@@ -39,9 +40,9 @@ export class EffectEngine {
         const effectsToTrigger: Effect[] = [];
         const effectsToRemove: Effect[] = [];
         for (const effect of this.effects.filter(
-            (effect) => effect.isEffectActive() && effect.effectDetails.type === EffectName.DelayedEffect
+            (effect) => effect.isEffectActive() && effect.impl.type === EffectName.DelayedEffect
         )) {
-            const properties = effect.effectDetails.getValue();
+            const properties = effect.impl.getValue();
             if (properties.condition) {
                 if (properties.condition(effect.context)) {
                     effectsToTrigger.push(effect);
@@ -59,7 +60,7 @@ export class EffectEngine {
             }
         }
         const effectTriggers = effectsToTrigger.map((effect) => {
-            const properties = effect.effectDetails.getValue();
+            const properties = effect.impl.getValue();
             const context = effect.context;
             const targets = effect.targets;
             return {
@@ -106,6 +107,7 @@ export class EffectEngine {
         }
     }
 
+    // UP NEXT: rename this to something that makes it clearer that it's needed for updating effect status
     checkEffects(prevStateChanged = false, loops = 0) {
         if (!prevStateChanged && !this.effectsChangedSinceLastCheck) {
             return false;

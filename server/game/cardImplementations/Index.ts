@@ -35,6 +35,10 @@ for (const filepath of allJsFiles(__dirname)) {
         throw Error(`Importing card class with repeated id!: ${card}`);
     }
 
+    if (!card.implemented) {
+        console.warn(`Warning: Loading partially implemented card '${cardId.internalName}'`);
+    }
+
     cardsMap.set(cardId.id, card);
 }
 

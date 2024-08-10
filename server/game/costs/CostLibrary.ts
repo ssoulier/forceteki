@@ -5,7 +5,6 @@ import { CardTargetSystem } from '../core/gameSystem/CardTargetSystem';
 import { GameSystem } from '../core/gameSystem/GameSystem';
 import * as GameSystems from '../gameSystems/GameSystemLibrary';
 import { ExecuteHandlerSystem } from '../gameSystems/ExecuteHandlerSystem';
-import { IReturnToDeckProperties } from '../gameSystems/ReturnToDeckSystem';
 import { ISelectCardProperties } from '../gameSystems/SelectCardSystem';
 import { TriggeredAbilityContext } from '../core/ability/TriggeredAbilityContext';
 import { Derivable, derive } from '../core/utils/Helpers';
@@ -14,6 +13,7 @@ import { ICost } from '../core/cost/ICost';
 import { GameActionCost } from '../core/cost/GameActionCost';
 import { MetaActionCost } from '../core/cost/MetaActionCost';
 import { AdjustableResourceCost } from './AdjustableResourceCost';
+import { ReturnToHandFromPlaySystem } from '../gameSystems/ReturnToHandFromPlaySystem';
 // import { TargetDependentFateCost } from './costs/TargetDependentFateCost';
 import Player from '../core/Player';
 
@@ -52,13 +52,29 @@ export function exhaustSelf(): ICost {
 //     return getSelectCost(GameSystems.sacrifice(), properties, 'Select card to sacrifice');
 // }
 
-// /**
-//  * Cost that will return a selected card to hand which matches the passed
-//  * condition.
-//  */
-// export function returnToHand(properties: SelectCostProperties): Cost {
-//     return getSelectCost(GameSystems.returnToHand(), properties, 'Select card to return to hand');
-// }
+/**
+ * Cost that will return to hand from the play area the card that initiated the ability
+ */
+export function returnSelfToHandFromPlay(): ICost {
+    return new GameActionCost(GameSystems.returnToHandFromPlay({ isCost: true }));
+}
+
+/**
+ * Cost that will return a selected card to hand from any area which matches the passed condition
+ * @deprecated This has not yet been tested
+ */
+export function returnToHand(properties: SelectCostProperties): ICost {
+    return getSelectCost(GameSystems.returnToHand(), properties, 'Select card to return to hand');
+}
+
+/**
+ * Simplified version of {@link returnToHand} that will return a selected card to hand from the
+ * play area which matches the passed condition
+ * @deprecated This has not yet been tested
+ */
+export function returnToHandFromPlay(properties: SelectCostProperties): ICost {
+    return getSelectCost(GameSystems.returnToHandFromPlay(), properties, 'Select card to return to hand');
+}
 
 // /**
 //  * Cost that will return a selected card to the appropriate deck which matches the passed
@@ -78,6 +94,7 @@ export function exhaustSelf(): ICost {
 /**
  * Cost that will shuffle a selected card into the relevant deck which matches the passed
  * condition.
+ * @deprecated This has not yet been tested
  */
 export function shuffleIntoDeck(properties: SelectCostProperties): ICost {
     return getSelectCost(
@@ -112,6 +129,7 @@ export function shuffleIntoDeck(properties: SelectCostProperties): ICost {
 //     );
 // }
 
+/** @deprecated This has not yet been tested */
 export function discardTopCardsFromDeck(properties: { amount: number; }): ICost {
     return {
         getActionName: (context) => 'discardTopCardsFromDeck',
@@ -192,14 +210,14 @@ export function putSelfIntoPlay(): ICost {
 //     return {
 //         canIgnoreForTargeting: true,
 //         canPay(context: TriggeredAbilityContext) {
-//             const amount = context.source.getCost();
+//             const amount = context.source.cost;
 //             return (
 //                 context.player.fate >= amount &&
 //                 (amount === 0 || context.player.checkRestrictions('spendFate', context))
 //             );
 //         },
 //         payEvent(context: TriggeredAbilityContext) {
-//             const amount = context.source.getCost();
+//             const amount = context.source.cost;
 //             return new Event(
 //                 EventName.OnSpendFate,
 //                 { amount, context },
