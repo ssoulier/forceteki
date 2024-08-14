@@ -15,6 +15,8 @@ export enum Location {
 export enum WildcardLocation {
     Any = 'any',
     AnyArena = 'any arena',
+
+    // TODO: better name for this?
     AnyAttackable = 'any attackable'
 }
 
@@ -66,7 +68,8 @@ export enum EffectName {
     IncreaseLimitOnAbilities = 'increaseLimitOnAbilities',
     LoseAllNonKeywordAbilities = 'loseAllNonKeywordAbilities',
     CannotApplyLastingEffects = 'cannotApplyLastingEffects',
-    CannotBeAttacked = 'cannotBeAttacked'
+    CannotBeAttacked = 'cannotBeAttacked',
+    GainAbility = 'gainAbility'
 }
 
 export enum Duration {
@@ -152,6 +155,7 @@ export enum EventName {
     OnSpendResources = 'onSpendResources',
     OnAttackDeclared = 'onAttackDeclared',
     OnDamageDealt = 'onDamageDealt',
+    OnDamageRemoved = 'onDamageRemoved',
     OnAttackCompleted = 'onAttackCompleted',
     OnCardReturnedToHand = 'onCardReturnedToHand',
 }
@@ -160,6 +164,7 @@ export enum AbilityType {
     Action = 'action',
     ForcedReaction = 'forcedReaction',
     Reaction = 'reaction',
+    TriggeredAbility = 'triggeredAbility',
     Persistent = 'persistent',
     OtherEffects = 'otherEffects'
 }
@@ -171,4 +176,55 @@ export enum Aspect {
     Command = 'command',
     Cunning = 'cunning',
     Vigilance = 'vigilance'
+}
+
+export enum Trait {
+    Force = 'force',
+    Rebel = 'rebel',
+    Imperial = 'imperial',
+    Sith = 'sith',
+    Trooper = 'trooper',
+    Official = 'official',
+    Vehicle = 'vehicle',
+    Fighter = 'fighter',
+    Innate = 'innate',
+    Gambit = 'gambit',
+    Underworld = 'underworld',
+    Wookiee = 'wookiee',
+    Jedi = 'jedi',
+    Supply = 'supply',
+    Tactic = 'tactic',
+    Item = 'item',
+    Weapon = 'weapon',
+    Lightsaber = 'lightsaber',
+    Separatist = 'separatist',
+    Learned = 'learned',
+    Armor = 'armor',
+    FirstOrder = 'first order',
+    Mandalorian = 'mandalorian',
+    BountyHunter = 'bounty hunter',
+    Droid = 'droid',
+    Spectre = 'spectre',
+    Walker = 'walker',
+    Law = 'law',
+    Creature = 'creature',
+    Fringe = 'fringe',
+    Plan = 'plan',
+    Twilek = 'twi\'lek',
+    Trick = 'trick',
+    Clone = 'clone',
+    Bounty = 'bounty',
+    Condition = 'condition',
+    Republic = 'republic',
+    Speeder = 'speeder',
+    Transport = 'transport',
+    Disaster = 'disaster',
+    CapitalShip = 'capital ship',
+    Hutt = 'hutt',
+    Tank = 'tank',
+    Inquisitor = 'inquisitor',
+    Jawa = 'jawa',
+    NewRepublic = 'new republic',
+    Modification = 'modification',
+    Resistance = 'resistance'
 }

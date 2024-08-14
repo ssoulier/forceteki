@@ -7,8 +7,6 @@ import type { ILastingEffectGeneralProperties } from './LastingEffectSystem';
 
 export interface ILastingEffectCardProperties extends Omit<ILastingEffectGeneralProperties, 'target'>, ICardTargetSystemProperties {
     targetLocation?: Location | Location[];
-    canChangeZoneOnce?: boolean;
-    canChangeZoneNTimes?: number;
 }
 
 // TODO: how is this related to LastingEffectSystem?
@@ -22,8 +20,6 @@ export class LastingEffectCardSystem extends CardTargetSystem<ILastingEffectCard
     override effectDescription = 'apply a lasting effect to {0}';
     override defaultProperties: ILastingEffectCardProperties = {
         duration: Duration.UntilEndOfAttack,
-        canChangeZoneOnce: false,
-        canChangeZoneNTimes: 0,
         effect: [],
         ability: null
     };
@@ -44,7 +40,7 @@ export class LastingEffectCardSystem extends CardTargetSystem<ILastingEffectCard
             super.canAffect(card, context) &&
             properties.effect.some(
                 (props) =>
-                    props.effect.canBeApplied(card) &&
+                    props.impl.canBeApplied(card) &&
                     !lastingEffectRestrictions.some((condition) => condition(props.effect))
             )
         );
@@ -64,8 +60,8 @@ export class LastingEffectCardSystem extends CardTargetSystem<ILastingEffectCard
         );
         effects = effects.filter(
             (props) =>
-                props.effect.canBeApplied(event.card) &&
-                !lastingEffectRestrictions.some((condition) => condition(props.effect))
+                props.impl.canBeApplied(event.card) &&
+                !lastingEffectRestrictions.some((condition) => condition(props.impl))
         );
         for (const effect of effects) {
             event.context.game.effectEngine.add(effect);

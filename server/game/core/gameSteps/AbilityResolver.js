@@ -6,6 +6,7 @@ const InitiateCardAbilityEvent = require('../event/InitiateCardAbilityEvent.js')
 const InitiateAbilityEventWindow = require('./abilityWindow/InitiateAbilityEventWindow.js');
 const { Location, Stage, CardType, EventName } = require('../Constants.js');
 
+// TODO: convert to TS
 class AbilityResolver extends BaseStepWithPipeline {
     constructor(game, context) {
         super(game);
@@ -19,13 +20,26 @@ class AbilityResolver extends BaseStepWithPipeline {
         this.targetResults = {};
         this.costResults = this.getCostResults();
         this.initialise();
+
+        // TODO: add interface for this in Interfaces.ts when we convert to TS
+        // this is used when a triggerd ability is marked optional to ensure that a "Pass" button
+        // appears at all times during the prompt flow for that ability
+        this.passAbilityHandler = this.context.ability.optional ? {
+            buttonText: 'Pass ability',
+            arg: 'passAbility',
+            hasBeenShown: false,
+            handler: () => {
+                this.cancelled = true;
+                this.passPriority = true;
+            }
+        } : null;
     }
 
     initialise() {
         this.pipeline.initialise([
             // new SimpleStep(this.game, () => this.createSnapshot()),
             new SimpleStep(this.game, () => this.resolveEarlyTargets()),
-            new SimpleStep(this.game, () => this.checkForCancel()),
+            new SimpleStep(this.game, () => this.checkForCancelOrPass()),
             new SimpleStep(this.game, () => this.openInitiateAbilityEventWindow()),
         ]);
     }
@@ -81,7 +95,7 @@ class AbilityResolver extends BaseStepWithPipeline {
         this.queueStep(new SimpleStep(this.game, () => this.payCosts()));
         this.queueStep(new SimpleStep(this.game, () => this.checkCostsWerePaid()));
         this.queueStep(new SimpleStep(this.game, () => this.resolveTargets()));
-        this.queueStep(new SimpleStep(this.game, () => this.checkForCancel()));
+        this.queueStep(new SimpleStep(this.game, () => this.checkForCancelOrPass()));
         this.queueStep(new SimpleStep(this.game, () => this.initiateAbilityEffects()));
         this.queueStep(new SimpleStep(this.game, () => this.executeHandler()));
         this.queueStep(new SimpleStep(this.game, () => this.moveEventCardToDiscard()));
@@ -90,18 +104,24 @@ class AbilityResolver extends BaseStepWithPipeline {
     resolveEarlyTargets() {
         this.context.stage = Stage.PreTarget;
         if (!this.context.ability.cannotTargetFirst) {
-            this.targetResults = this.context.ability.resolveTargets(this.context);
+            this.targetResults = this.context.ability.resolveTargets(this.context, this.passAbilityHandler);
         }
     }
 
-    checkForCancel() {
+    checkForCancelOrPass() {
         if (this.cancelled) {
+            return;
+        }
+
+        if (this.passAbilityHandler && !this.passAbilityHandler.hasBeenShown) {
+            this.queueStep(new SimpleStep(this.game, () => this.checkForPass()));
             return;
         }
 
         this.cancelled = this.targetResults.cancelled;
     }
 
+    // TODO: add passHandler support here
     resolveCosts() {
         if (this.cancelled) {
             return;
@@ -121,6 +141,29 @@ class AbilityResolver extends BaseStepWithPipeline {
         };
     }
 
+    checkForPass() {
+        if (this.cancelled) {
+            return;
+        } else if (this.costResults.cancelled) {
+            this.cancelled = true;
+            return;
+        }
+
+        if (this.passAbilityHandler && !this.passAbilityHandler.hasBeenShown) {
+            this.passAbilityHandler.hasBeenShown = true;
+            this.game.promptWithHandlerMenu(this.context.player, {
+                activePromptTitle: 'Do you want to trigger this ability or pass?',
+                choices: ['Trigger', 'Pass'],
+                handlers: [
+                    () => {},
+                    () => {
+                        this.passAbilityHandler.handler();
+                    }
+                ]
+            });
+        }
+    }
+
     payCosts() {
         if (this.cancelled) {
             return;
@@ -128,6 +171,7 @@ class AbilityResolver extends BaseStepWithPipeline {
             this.cancelled = true;
             return;
         }
+
         this.passPriority = true;
         if (this.costResults.events.length > 0) {
             this.game.openEventWindow(this.costResults.events);
@@ -156,10 +200,10 @@ class AbilityResolver extends BaseStepWithPipeline {
             this.cancelled = true;
         } else if (this.targetResults.delayTargeting) {
             // Targeting was delayed due to an opponent needing to choose targets (which shouldn't happen until costs have been paid), so continue
-            this.targetResults = this.context.ability.resolveRemainingTargets(this.context, this.targetResults.delayTargeting);
+            this.targetResults = this.context.ability.resolveRemainingTargets(this.context, this.targetResults.delayTargeting, this.passAbilityHandler);
         } else if (this.targetResults.payCostsFirst || !this.context.ability.checkAllTargets(this.context)) {
             // Targeting was stopped by the player choosing to pay costs first, or one of the chosen targets is no longer legal. Retarget from scratch
-            this.targetResults = this.context.ability.resolveTargets(this.context);
+            this.targetResults = this.context.ability.resolveTargets(this.context, this.passAbilityHandler);
         }
     }
 
@@ -182,6 +226,7 @@ class AbilityResolver extends BaseStepWithPipeline {
         this.context.ability.displayMessage(this.context);
 
         if (this.context.ability.isTriggeredAbility()) {
+            // TODO EVENTS: need to remove 'BeingPlayed' reference here and just send directly to discard (should already be there since this is triggering off an already-played card)
             // If this is an event, move it to 'being played', and queue a step to send it to the discard pile after it resolves
             if (this.context.ability.isCardPlayed()) {
                 this.game.actions.moveCard({ destination: Location.BeingPlayed }).resolve(this.context.source, this.context);

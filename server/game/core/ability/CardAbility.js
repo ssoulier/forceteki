@@ -2,14 +2,20 @@ const AbilityLimit = require('./AbilityLimit.js');
 const AbilityDsl = require('../../AbilityDsl.js');
 const CardAbilityStep = require('./CardAbilityStep.js');
 const Costs = require('../../costs/CostLibrary.js');
-const { Location, CardType, EffectName, WildcardLocation } = require('../Constants.js');
+const { Location, CardType, EffectName, WildcardLocation, AbilityType } = require('../Constants.js');
 const { cardLocationMatches } = require('../utils/EnumHelpers.js');
+const { addInitiateAttackProperties } = require('../attack/AttackHelper.js');
 
 class CardAbility extends CardAbilityStep {
-    constructor(game, card, properties) {
-        super(game, card, properties);
+    constructor(game, card, properties, abilityType = AbilityType.Action) {
+        if (properties.initiateAttack) {
+            addInitiateAttackProperties(properties);
+        }
+        super(game, card, properties, abilityType);
 
         this.title = properties.title;
+
+        // TODO: need to change this so that the default limit is unlimited (might break some things)
         this.limit = properties.limit || AbilityLimit.perRound(1);
         this.limit.registerEvents(game);
         this.limit.ability = this;
@@ -19,6 +25,7 @@ class CardAbility extends CardAbilityStep {
         this.cannotBeCancelled = properties.cannotBeCancelled;
         this.cannotTargetFirst = !!properties.cannotTargetFirst;
         this.cannotBeMirrored = !!properties.cannotBeMirrored;
+        this.optional = !!properties.optional;
         this.max = properties.max;
         this.abilityIdentifier = properties.abilityIdentifier;
         this.origin = properties.origin;
@@ -79,7 +86,7 @@ class CardAbility extends CardAbilityStep {
         if (
             !ignoredRequirements.includes('phase') &&
             !this.isKeywordAbility() &&
-            this.card.isDynasty &&
+            this.card.isDynasty &&  // TODO: remove the dynasty stuff here
             this.card.type === CardType.Event &&
             context.game.currentPhase !== 'dynasty'
         ) {
@@ -233,6 +240,7 @@ class CardAbility extends CardAbilityStep {
         return !this.isKeywordAbility() && this.card.getType() === CardType.Event;
     }
 
+    // TODO: rename this, it meant something else in L5R and there's a name collision now
     /** @override */
     isTriggeredAbility() {
         return true;

@@ -3,6 +3,8 @@ describe('Basic attack', function() {
         describe('When a unit attacks', function() {
             beforeEach(function () {
                 this.setupTest({
+                    // TODO: allow resources to be optionally be specified as a number instead of naming specific cards (i.e., 2 resources)
+                    // TODO: helper function for automatically selecting a leader and / or base that match the aspects of the card under test
                     phase: 'action',
                     player1: {
                         groundArena: ['wampa'],
@@ -13,7 +15,7 @@ describe('Basic attack', function() {
                     player2: {
                         groundArena: ['frontier-atrt', 'enfys-nest#marauder'],
                         spaceArena: ['alliance-xwing'],
-                        resources: ['atst', 'atst'],     // TODO: allow resources to be optionally be specified as a number instead of naming specific cards (i.e., 2 resources)
+                        resources: ['atst', 'atst'],
                         base: ['jabbas-palace']
                     }
                 });
@@ -32,15 +34,10 @@ describe('Basic attack', function() {
                 this.player1.clickCard(this.wampa);
                 expect(this.player1).toHavePrompt('Choose a target for attack');
 
+                // TODO: test helper for managing attacks
                 // can target opponent's ground units and base but not space units
-                expect(this.player1).toBeAbleToSelect(this.atrt);
-                expect(this.player1).toBeAbleToSelect(this.enfysNest);
-                expect(this.player1).toBeAbleToSelect(this.p2Base);
-                expect(this.player1).not.toBeAbleToSelect(this.allianceXWing);
-
-                expect(this.player1).not.toBeAbleToSelect(this.wampa);
-                expect(this.player1).not.toBeAbleToSelect(this.cartelSpacer);
-                expect(this.player1).not.toBeAbleToSelect(this.p1Base);
+                expect(this.player1).toBeAbleToSelectAllOf([this.atrt, this.enfysNest, this.p2Base]);
+                expect(this.player1).toBeAbleToSelectNoneOf([this.allianceXWing, this.wampa, this.cartelSpacer, this.p1Base]);
             });
 
             it('from space arena to another unit in the space arena, attack should resolve correctly', function () {
@@ -52,22 +49,6 @@ describe('Basic attack', function() {
                 expect(this.cartelSpacer.exhausted).toBe(true);
                 expect(this.allianceXWing.damage).toBe(2);
                 expect(this.allianceXWing.exhausted).toBe(false);
-            });
-
-            it(', should only be able to select opponent\'s units in the same arena and base', function () {
-                this.player1.clickCard(this.wampa);
-                expect(this.player1).toHavePrompt('Choose a target for attack');
-
-                // TODO: test helper for managing attacks
-                // can target opponent's ground units and base but not space units
-                expect(this.player1).toBeAbleToSelect(this.atrt);
-                expect(this.player1).toBeAbleToSelect(this.enfysNest);
-                expect(this.player1).toBeAbleToSelect(this.p2Base);
-                expect(this.player1).not.toBeAbleToSelect(this.allianceXWing);
-
-                expect(this.player1).not.toBeAbleToSelect(this.wampa);
-                expect(this.player1).not.toBeAbleToSelect(this.cartelSpacer);
-                expect(this.player1).not.toBeAbleToSelect(this.p1Base);
             });
 
             it('another unit and neither is defeated, both should receive damage and attacker should be exhausted', function () {

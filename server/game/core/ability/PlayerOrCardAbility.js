@@ -1,8 +1,7 @@
 const AbilityTargetAbility = require('./abilityTargets/AbilityTargetAbility.js');
 const AbilityTargetCard = require('./abilityTargets/AbilityTargetCard.js');
 const AbilityTargetSelect = require('./abilityTargets/AbilityTargetSelect.js');
-const AbilityTargetToken = require('./abilityTargets/AbilityTargetToken.js');
-const { Stage, TargetMode } = require('../Constants.js');
+const { Stage, TargetMode, AbilityType } = require('../Constants.js');
 
 // TODO: convert to TS and make this abstract
 /**
@@ -27,8 +26,9 @@ class PlayerOrCardAbility {
      * the target of the ability.
      * @param {Array} [properties.gameSystem] - GameSystem[] optional array of game actions
      */
-    constructor(properties) {
-        this.abilityType = 'action';
+    constructor(properties, abilityType = AbilityType.Action) {
+        this.limit = null;
+        this.abilityType = abilityType;
         this.gameSystem = properties.gameSystem || [];
         if (!Array.isArray(this.gameSystem)) {
             this.gameSystem = [this.gameSystem];
@@ -81,8 +81,6 @@ class PlayerOrCardAbility {
             return new AbilityTargetSelect(name, properties, this);
         } else if (properties.mode === TargetMode.Ability) {
             return new AbilityTargetAbility(name, properties, this);
-        } else if (properties.mode === TargetMode.Token) {
-            return new AbilityTargetToken(name, properties, this);
         }
         return new AbilityTargetCard(name, properties, this);
     }
@@ -176,7 +174,7 @@ class PlayerOrCardAbility {
     /**
      * Prompts the current player to choose each target defined for the ability.
      */
-    resolveTargets(context) {
+    resolveTargets(context, passHandler = null) {
         let targetResults = {
             canIgnoreAllCosts:
                 context.stage === Stage.PreTarget ? this.cost.every((cost) => cost.canIgnoreForTargeting) : false,
@@ -185,12 +183,12 @@ class PlayerOrCardAbility {
             delayTargeting: null
         };
         for (let target of this.targets) {
-            context.game.queueSimpleStep(() => target.resolve(context, targetResults));
+            context.game.queueSimpleStep(() => target.resolve(context, targetResults, passHandler));
         }
         return targetResults;
     }
 
-    resolveRemainingTargets(context, nextTarget) {
+    resolveRemainingTargets(context, nextTarget, passHandler = null) {
         const index = this.targets.indexOf(nextTarget);
         let targets = this.targets.slice();
         if (targets.slice(0, index).every((target) => target.checkTarget(context))) {
@@ -198,7 +196,7 @@ class PlayerOrCardAbility {
         }
         let targetResults = {};
         for (const target of targets) {
-            context.game.queueSimpleStep(() => target.resolve(context, targetResults));
+            context.game.queueSimpleStep(() => target.resolve(context, targetResults, passHandler));
         }
         return targetResults;
     }

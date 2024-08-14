@@ -9,7 +9,10 @@ import { CardTargetSystem, type ICardTargetSystemProperties } from '../core/game
 import { damage } from './GameSystemLibrary.js';
 import type Card from '../core/card/Card'; // TODO: is this the right import form?
 import { isArray } from 'underscore';
+import Effect from '../core/effect/Effect';
+import { ILastingEffectCardProperties, LastingEffectCardSystem } from '../core/gameSystem/LastingEffectCardSystem';
 
+export type IAttackLastingEffectCardProperties = Omit<ILastingEffectCardProperties, 'duration'>;
 
 export interface IAttackProperties extends ICardTargetSystemProperties {
     attacker?: Card;
@@ -17,13 +20,19 @@ export interface IAttackProperties extends ICardTargetSystemProperties {
     message?: string;
     messageArgs?: (attack: Attack, context: AbilityContext) => any | any[];
     costHandler?: (context: AbilityContext, prompt: any) => void;
-    statistic?: (card: Card) => number;
+
+    /**
+     * Effects to trigger for the duration of the attack. Can be one or more {@link ILastingEffectCardProperties}
+     * or a function generator(s) for them.
+     */
+    effects?: IAttackLastingEffectCardProperties | ((context: AbilityContext, attack: Attack) => IAttackLastingEffectCardProperties) |
+        (IAttackLastingEffectCardProperties | ((context: AbilityContext, attack: Attack) => IAttackLastingEffectCardProperties))[]
 }
 
 export class AttackSystem extends CardTargetSystem<IAttackProperties> {
     override name = 'attack';
     override eventName = EventName.OnAttackDeclared;
-    override targetType = [CardType.Unit, CardType.Base]; // TODO: leader?
+    override targetType = [CardType.Unit, CardType.Base];
 
     override defaultProperties: IAttackProperties = {};
 
@@ -147,6 +156,8 @@ export class AttackSystem extends CardTargetSystem<IAttackProperties> {
             return;
         }
 
+        this.registerAttackEffects(context, properties, event.attack);
+
         const attack = event.attack;
         context.game.queueStep(
             new AttackFlow(
@@ -158,6 +169,35 @@ export class AttackSystem extends CardTargetSystem<IAttackProperties> {
                 //     : undefined
             )
         );
+    }
+
+    // TODO: change attack effects so that they check the specific attack they are affecting,
+    // in case we have have a situation when multiple attacks are happening in parallel but an effect
+    // only applies to one of them.
+    private registerAttackEffects(context: AbilityContext, properties: IAttackProperties, attack: Attack) {
+        if (!properties.effects) {
+            return;
+        }
+
+        let effects = properties.effects;
+        if (!isArray(effects)) {
+            effects = [effects];
+        }
+
+        // create events for all effects to be generated
+        const effectEvents: Event[] = [];
+        for (const effect of effects) {
+            const effectProperties = typeof effect === 'function' ? effect(context, attack) : effect;
+
+            const effectSystem = new LastingEffectCardSystem(effectProperties);
+            effectSystem.addEventsToArray(effectEvents, context);
+        }
+
+        // trigger events
+        context.game.openEventWindow(effectEvents);
+
+        // TODO EFFECTS: remove this hack
+        context.game.queueSimpleStep(() => context.game.checkGameState());
     }
 
     override checkEventCondition(event, additionalProperties): boolean {
