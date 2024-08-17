@@ -1,7 +1,7 @@
 import PlayerOrCardAbility from './PlayerOrCardAbility';
 import type Card from '../card/Card';
 import { Aspect, Location, PlayType, Stage } from '../Constants';
-import EffectSource from '../effect/EffectSource';
+import OngoingEffectSource from '../ongoingEffect/OngoingEffectSource';
 import type Game from '../Game';
 import type { GameSystem } from '../gameSystem/GameSystem';
 import type Player from '../Player';
@@ -27,45 +27,44 @@ export interface IAbilityContextProperties {
  * While the structure will vary from inheriting classes, it is guaranteed to have at least the `game` object, the
  * `player` that is executing the action, and the `source` card object that the ability is generated from.
  */
-export class AbilityContext<S = any> {
-    game: Game;
-    source: S;
-    player: Player;
-    ability: PlayerOrCardAbility;
-    costs: any;
-    costAspects: Aspect[];
-    targets: any;
-    selects: any;
-    tokens: any;
-    events: any[] = [];
-    stage: Stage;
-    targetAbility: any;
-    target: any;
-    select: string;
-    // token: StatusToken;
-    subResolution = false;
-    choosingPlayerOverride: Player = null;
-    gameActionsResolutionChain: GameSystem[] = [];
-    playType: PlayType;
-    cardStateWhenInitiated: any = null;
+export class AbilityContext<TSource = any> {
+    public game: Game;
+    public source: TSource;
+    public player: Player;
+    public ability: PlayerOrCardAbility;
+    public costs: any;
+    public costAspects: Aspect[];
+    public targets: any;
+    public selects: any;
+    public tokens: any;
+    public events: any[] = [];
+    public stage: Stage;
+    public targetAbility: any;
+    public target: any;
+    public select: string;
+    public subResolution = false;
+    public choosingPlayerOverride: Player = null;
+    public gameActionsResolutionChain: GameSystem[] = [];
+    public playType: PlayType;
+    public cardStateWhenInitiated: any = null;
 
-    constructor(properties: IAbilityContextProperties) {
+    public constructor(properties: IAbilityContextProperties) {
         this.game = properties.game;
-        this.source = properties.source || new EffectSource(this.game);
+        this.source = properties.source || new OngoingEffectSource(this.game);
         this.player = properties.player;
-        this.ability = properties.ability || new PlayerOrCardAbility({});
+        this.ability = properties.ability || null;
         this.costs = properties.costs || {};
         this.costAspects = properties.costAspects || [];
         this.targets = properties.targets || {};
         this.selects = properties.selects || {};
         this.tokens = properties.tokens || {};
-        this.stage = properties.stage || Stage.Effect;
+        this.stage = properties.stage || Stage.EffectTmp;
         this.targetAbility = properties.targetAbility;
         // const location = this.player && this.player.playableLocations.find(location => location.contains(this.source));
         this.playType = this.player && this.player.findPlayType(this.source); //location && location.playingType;
     }
 
-    copy(newProps: Partial<IAbilityContextProperties>): AbilityContext<this> {
+    public copy(newProps: Partial<IAbilityContextProperties>): AbilityContext<this> {
         const copy = this.createCopy(newProps);
         copy.target = this.target;
         // copy.token = this.token;
@@ -78,11 +77,11 @@ export class AbilityContext<S = any> {
         return copy;
     }
 
-    createCopy(newProps: Partial<IAbilityContextProperties>): AbilityContext<this> {
+    public createCopy(newProps: Partial<IAbilityContextProperties>): AbilityContext<this> {
         return new AbilityContext(Object.assign(this.getProps(), newProps));
     }
 
-    getProps(): IAbilityContextProperties {
+    public getProps(): IAbilityContextProperties {
         return {
             game: this.game,
             source: this.source,

@@ -1,6 +1,6 @@
-const _ = require('underscore');
 const { SelectChoice } = require('./SelectChoice.js');
 const { Stage, RelativePlayer } = require('../../Constants.js');
+const { default: Contract } = require('../../utils/Contract.js');
 
 class AbilityTargetSelect {
     constructor(name, properties, ability) {
@@ -9,7 +9,13 @@ class AbilityTargetSelect {
         this.dependentTarget = null;
         this.dependentCost = null;
         if (this.properties.dependsOn) {
-            let dependsOnTarget = ability.targets.find((target) => target.name === this.properties.dependsOn);
+            let dependsOnTarget = ability.targetResolvers.find((target) => target.name === this.properties.dependsOn);
+
+            // assert that the target we depend on actually exists
+            if (!Contract.assertNotNullLike(dependsOnTarget)) {
+                return null;
+            }
+
             dependsOnTarget.dependentTarget = this;
         }
     }
@@ -49,7 +55,7 @@ class AbilityTargetSelect {
         return choice.hasLegalTarget(contextCopy);
     }
 
-    getGameAction(context) {
+    getGameSystem(context) {
         if (!context.selects[this.name]) {
             return [];
         }
@@ -64,7 +70,7 @@ class AbilityTargetSelect {
         return Object.keys(this.getChoices(context)).filter((key) => this.isChoiceLegal(key, context));
     }
 
-    // UP NEXT: add passHandler here
+    // TODO: add passHandler here so that player can potentially be prompted for pass earlier in the window
     resolve(context, targetResults) {
         if (targetResults.cancelled || targetResults.payCostsFirst || targetResults.delayTargeting) {
             return;
@@ -73,14 +79,14 @@ class AbilityTargetSelect {
             return;
         }
 
-        let player = (this.properties.targets && context.choosingPlayerOverride) || this.getChoosingPlayer(context);
+        let player = (this.properties.targetResolvers && context.choosingPlayerOverride) || this.getChoosingPlayer(context);
         if (player === context.player.opponent && context.stage === Stage.PreTarget) {
             targetResults.delayTargeting = this;
             return;
         }
         let promptTitle = this.properties.activePromptTitle || 'Select one';
         let choices = Object.keys(this.getChoices(context)).filter((key) => this.isChoiceLegal(key, context));
-        let handlers = _.map(choices, (choice) => {
+        let handlers = choices.map((choice) => {
             return () => {
                 context.selects[this.name] = new SelectChoice(choice);
                 if (this.name === 'target') {
@@ -120,7 +126,7 @@ class AbilityTargetSelect {
 
     checkTarget(context) {
         if (
-            this.properties.targets &&
+            this.properties.targetResolvers &&
             context.choosingPlayerOverride &&
             this.getChoosingPlayer(context) === context.player
         ) {
@@ -138,7 +144,7 @@ class AbilityTargetSelect {
     }
 
     hasTargetsChosenByInitiatingPlayer(context) {
-        if (this.properties.targets) {
+        if (this.properties.targetResolvers) {
             return true;
         }
         let actions = Object.values(this.getChoices(context)).filter((value) => typeof value !== 'function');

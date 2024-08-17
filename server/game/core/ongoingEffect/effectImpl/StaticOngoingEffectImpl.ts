@@ -1,7 +1,7 @@
-import { EffectValue } from './EffectValue';
+import { OngoingEffectValueWrapper } from './OngoingEffectValueWrapper';
 import { CardType, EffectName, Duration, AbilityType } from '../../Constants';
 import { AbilityContext } from '../../ability/AbilityContext';
-import { EffectImpl } from './EffectImpl';
+import { OngoingEffectImpl } from './OngoingEffectImpl';
 
 const binaryCardEffects = [
     EffectName.Blank,
@@ -61,47 +61,46 @@ const binaryCardEffects = [
 //             : []
 // };
 
-// TODO: readonly pass on class properties throughout the repo
-export default class StaticEffectImpl<TValue> extends EffectImpl<TValue> {
-    readonly value: EffectValue<TValue>;
+export default class StaticOngoingEffectImpl<TValue> extends OngoingEffectImpl<TValue> {
+    public readonly valueWrapper: OngoingEffectValueWrapper<TValue>;
 
-    constructor(type: EffectName, value: EffectValue<TValue> | TValue) {
+    public constructor(type: EffectName, value: OngoingEffectValueWrapper<TValue> | TValue) {
         super(type);
 
-        if (value instanceof EffectValue) {
-            this.value = value;
+        if (value instanceof OngoingEffectValueWrapper) {
+            this.valueWrapper = value;
         } else {
-            this.value = new EffectValue(value);
+            this.valueWrapper = new OngoingEffectValueWrapper(value);
         }
-        this.value.reset();
+        this.valueWrapper.reset();
     }
 
-    apply(target) {
+    public apply(target) {
         target.addEffect(this);
-        this.value.apply(target);
+        this.valueWrapper.apply(target);
     }
 
-    unapply(target) {
+    public unapply(target) {
         target.removeEffect(this);
-        this.value.unapply(target);
+        this.valueWrapper.unapply(target);
     }
 
-    getValue(target) {
-        return this.value.getValue();
+    public getValue(target) {
+        return this.valueWrapper.getValue();
     }
 
-    recalculate(target) {
-        return this.value.recalculate();
+    public recalculate(target) {
+        return this.valueWrapper.recalculate();
     }
 
-    override setContext(context: AbilityContext) {
+    public override setContext(context: AbilityContext) {
         super.setContext(context);
-        this.value.setContext(context);
+        this.valueWrapper.setContext(context);
     }
 
     // effects can't be applied to facedown cards
     // TODO: do we have any exceptions to that rule?
-    canBeApplied(target) {
+    public canBeApplied(target) {
         return !target.facedown;
     }
 
@@ -161,8 +160,8 @@ export default class StaticEffectImpl<TValue> extends EffectImpl<TValue> {
     //     return durations.indexOf(this.duration) > durations.indexOf(effect.duration);
     // }
 
-    override getDebugInfo() {
-        return Object.assign(super.getDebugInfo(), { value: this.value });
+    public override getDebugInfo() {
+        return Object.assign(super.getDebugInfo(), { value: this.valueWrapper });
     }
 }
 

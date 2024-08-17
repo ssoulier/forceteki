@@ -1,14 +1,15 @@
 import type { AbilityContext } from '../ability/AbilityContext';
 import type { ICost, Result } from './ICost';
 import type { GameSystem } from '../gameSystem/GameSystem';
+import type { GameEvent } from '../event/GameEvent';
 
 /**
  * Class that wraps a {@link GameSystem} so it can be represented as an action cost
  */
 export class GameActionCost implements ICost {
-    constructor(public gameSystem: GameSystem) {}
+    public constructor(public gameSystem: GameSystem) {}
 
-    getActionName(context: AbilityContext): string {
+    public getActionName(context: AbilityContext): string {
         return this.gameSystem.name;
     }
 
@@ -18,16 +19,16 @@ export class GameActionCost implements ICost {
      * @param context Context of ability being executed
      * @returns True if this cost can be paid, false otherwise
      */
-    canPay(context: AbilityContext): boolean {
+    public canPay(context: AbilityContext): boolean {
         return this.gameSystem.hasLegalTarget(context);
     }
 
-    addEventsToArray(events: any[], context: AbilityContext, result: Result): void {
+    public generateEventsForAllTargets(context: AbilityContext, result: Result): GameEvent[] {
         context.costs[this.gameSystem.name] = this.gameSystem.generatePropertiesFromContext(context).target;
-        this.gameSystem.addEventsToArray(events, context);
+        return this.gameSystem.generateEventsForAllTargets(context);
     }
 
-    getCostMessage(context: AbilityContext): [string, any[]] {
+    public getCostMessage(context: AbilityContext): [string, any[]] {
         return this.gameSystem.getCostMessage(context);
     }
 }

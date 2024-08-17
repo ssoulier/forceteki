@@ -1,5 +1,5 @@
 import Player from '../../Player';
-import { Event } from '../../event/Event';
+import { GameEvent } from '../../event/GameEvent';
 import EventWindow from '../../event/EventWindow';
 import { AbilityType, WildcardLocation } from '../../Constants';
 import Contract from '../../utils/Contract';
@@ -15,43 +15,33 @@ export class TriggeredAbilityWindow extends BaseStep {
     protected unresolved = new Map<Player, TriggeredAbilityContext[]>();
 
     /** Already resolved effects / abilities */
-    protected resolved: { ability: TriggeredAbilityContext, event: Event }[] = [];
+    protected resolved: { ability: TriggeredAbilityContext, event: GameEvent }[] = [];
 
     /** Chosen order of players to resolve in (SWU 6.10), null if not yet chosen */
     private resolvePlayerOrder?: Player[] = null;
 
     /** The events that were triggered as part of this window */
-    private triggeringEvents: Event[];
+    private triggeringEvents: GameEvent[];
 
     private eventWindow: EventWindow;
-    private eventsToExclude: Event[];
+    private eventsToExclude: GameEvent[];
     private eventsEmitted = false;
     private choosePlayerResolutionOrderComplete = false;
+    private readonly toStringName: string;
 
-    // TODO: go through and clean up files so that properties appear before ctor in files
-    get currentlyResolvingPlayer(): Player | null {
+    public get currentlyResolvingPlayer(): Player | null {
         return this.resolvePlayerOrder?.[0] ?? null;
     }
 
-    constructor(game, window, eventsToExclude = []) {
+    public constructor(game, window, eventsToExclude = []) {
         super(game);
         this.eventWindow = window;
         this.eventsToExclude = eventsToExclude ?? [];
+
+        this.toStringName = `'TriggeredAbilityWindow: ${this.eventWindow.events.map((event) => event.name).join(', ')}'`;
     }
 
-    addToWindow(context: TriggeredAbilityContext) {
-        this.assertWindowResolutionNotStarted('ability', context.source);
-
-        if (!context.event.cancelled && context.ability) {
-            if (!this.unresolved.has(context.player)) {
-                this.unresolved.set(context.player, [context]);
-            } else {
-                this.unresolved.get(context.player).push(context);
-            }
-        }
-    }
-
-    override continue() {
+    public override continue() {
         this.game.currentAbilityWindow = this;
 
         if (!this.eventsEmitted) {
@@ -85,6 +75,18 @@ export class TriggeredAbilityWindow extends BaseStep {
         }
 
         return false;
+    }
+
+    public addToWindow(context: TriggeredAbilityContext) {
+        this.assertWindowResolutionNotStarted('ability', context.source);
+
+        if (!context.event.cancelled && context.ability) {
+            if (!this.unresolved.has(context.player)) {
+                this.unresolved.set(context.player, [context]);
+            } else {
+                this.unresolved.get(context.player).push(context);
+            }
+        }
     }
 
     protected assertWindowResolutionNotStarted(triggerTypeName: string, source: Card) {
@@ -127,7 +129,7 @@ export class TriggeredAbilityWindow extends BaseStep {
             if (resolver.passPriority) {
                 this.postResolutionUpdate(resolver);
             }
-        });
+        }, `Check and pass priority for ${resolver.context.ability}`);
     }
 
     /** Get the set of yet-unresolved abilities for the player whose turn it is to do resolution */
@@ -241,5 +243,9 @@ export class TriggeredAbilityWindow extends BaseStep {
         this.game.emit('aggregateEvent:' + AbilityType.TriggeredAbility, events, this);
 
         this.triggeringEvents = events;
+    }
+
+    public override toString() {
+        return this.toStringName;
     }
 }

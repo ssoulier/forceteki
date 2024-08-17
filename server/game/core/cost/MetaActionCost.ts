@@ -5,30 +5,31 @@ import type { GameSystem } from '../gameSystem/GameSystem';
 import type { ISelectCardProperties } from '../../gameSystems/SelectCardSystem';
 import { randomItem } from '../utils/Helpers';
 import { GameActionCost } from './GameActionCost';
+import { GameEvent } from '../event/GameEvent';
 
 export class MetaActionCost extends GameActionCost implements ICost {
-    constructor(
+    public constructor(
         gameSystem: GameSystem,
         public activePromptTitle: string
     ) {
         super(gameSystem);
     }
 
-    override getActionName(context: AbilityContext): string {
+    public override getActionName(context: AbilityContext): string {
         const { innerSystem: gameSystem } = this.gameSystem.generatePropertiesFromContext(context) as ISelectCardProperties;
         return gameSystem.name;
     }
 
-    override canPay(context: AbilityContext): boolean {
+    public override canPay(context: AbilityContext): boolean {
         const properties = this.gameSystem.generatePropertiesFromContext(context) as ISelectCardProperties;
         const additionalProps = {
             controller: RelativePlayer.Self,
-            location: properties.location || WildcardLocation.Any
+            locationFilter: properties.locationFilter || WildcardLocation.Any
         };
         return this.gameSystem.hasLegalTarget(context, additionalProps);
     }
 
-    override addEventsToArray(events: any[], context: AbilityContext, result: Result): void {
+    public override generateEventsForAllTargets(context: AbilityContext, result: Result): GameEvent[] {
         const properties = this.gameSystem.generatePropertiesFromContext(context) as ISelectCardProperties;
         if (properties.targets && context.choosingPlayerOverride) {
             context.costs[properties.innerSystem.name] = randomItem(
@@ -36,14 +37,14 @@ export class MetaActionCost extends GameActionCost implements ICost {
             );
             context.costs[properties.innerSystem.name + 'StateWhenChosen'] =
                 context.costs[properties.innerSystem.name].createSnapshot();
-            return properties.innerSystem.addEventsToArray(events, context, {
+            return properties.innerSystem.generateEventsForAllTargets(context, {
                 target: context.costs[properties.innerSystem.name]
             });
         }
 
         const additionalProps = {
             activePromptTitle: this.activePromptTitle,
-            location: properties.location || WildcardLocation.Any,
+            location: properties.locationFilter || WildcardLocation.Any,
             controller: RelativePlayer.Self,
             cancelHandler: !result.canCancel ? null : () => (result.cancelled = true),
             subActionProperties: (target: any) => {
@@ -54,14 +55,14 @@ export class MetaActionCost extends GameActionCost implements ICost {
                 return properties.innerSystemProperties ? properties.innerSystemProperties(target) : {};
             }
         };
-        this.gameSystem.addEventsToArray(events, context, additionalProps);
+        return this.gameSystem.generateEventsForAllTargets(context, additionalProps);
     }
 
-    hasTargetsChosenByInitiatingPlayer(context: AbilityContext): boolean {
+    public hasTargetsChosenByInitiatingPlayer(context: AbilityContext): boolean {
         return this.gameSystem.hasTargetsChosenByInitiatingPlayer(context);
     }
 
-    override getCostMessage(context: AbilityContext): [string, any[]] {
+    public override getCostMessage(context: AbilityContext): [string, any[]] {
         const properties = this.gameSystem.generatePropertiesFromContext(context) as ISelectCardProperties;
         return properties.innerSystem.getCostMessage(context);
     }

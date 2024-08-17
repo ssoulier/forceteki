@@ -1,23 +1,33 @@
-const _ = require('underscore');
-
+const { defaultLegalLocationsForCardTypes, asArray } = require('../../../../Util.js');
 const CardSelector = require('../../cardSelector/CardSelector.js');
 const { Stage, RelativePlayer, EffectName, TargetMode } = require('../../Constants.js');
+const { default: Contract } = require('../../utils/Contract.js');
+const { cardLocationMatches } = require('../../utils/EnumHelpers.js');
 
+// TODO: the AbilityTarget* classes need a base class and then converted to TS
 class AbilityTargetCard {
     constructor(name, properties, ability) {
         this.name = name;
         this.properties = properties;
-        for (let gameSystem of this.properties.gameSystem) {
-            // TODO: is this ever actually used? need to consolidate how targeting is done
+        for (let gameSystem of this.properties.immediateEffect) {
+            // TODO TARGET: is this ever actually used? need to consolidate how targeting is done
             gameSystem.setDefaultTargetFn((context) => context.targets[name]);
         }
         this.selector = this.getSelector(properties);
         this.dependentTarget = null;
         this.dependentCost = null;
         if (this.properties.dependsOn) {
-            let dependsOnTarget = ability.targets.find((target) => target.name === this.properties.dependsOn);
+            let dependsOnTarget = ability.targetResolvers.find((target) => target.name === this.properties.dependsOn);
+
+            // assert that the target we depend on actually exists
+            if (!Contract.assertNotNullLike(dependsOnTarget)) {
+                return null;
+            }
+
             dependsOnTarget.dependentTarget = this;
         }
+
+        this.validateLocationLegalForTarget(properties);
     }
 
     getSelector(properties) {
@@ -28,7 +38,7 @@ class AbilityTargetCard {
             }
             return (!properties.cardCondition || properties.cardCondition(card, contextCopy)) &&
                    (!this.dependentTarget || this.dependentTarget.hasLegalTarget(contextCopy)) &&
-                   (properties.gameSystem.length === 0 || properties.gameSystem.some((gameSystem) => gameSystem.hasLegalTarget(contextCopy)));
+                   (properties.immediateEffect.length === 0 || properties.immediateEffect.some((gameSystem) => gameSystem.hasLegalTarget(contextCopy)));
         };
         return CardSelector.for(Object.assign({}, properties, { cardCondition: cardCondition, targets: true }));
     }
@@ -51,8 +61,8 @@ class AbilityTargetCard {
         return this.selector.optional || this.selector.hasEnoughTargets(context, this.getChoosingPlayer(context));
     }
 
-    getGameAction(context) {
-        return this.properties.gameSystem.filter((gameSystem) => gameSystem.hasLegalTarget(context));
+    getGameSystem(context) {
+        return asArray(this.properties.immediateEffect).filter((gameSystem) => gameSystem.hasLegalTarget(context));
     }
 
     getAllLegalTargets(context) {
@@ -78,7 +88,13 @@ class AbilityTargetCard {
                 return;
             }
         }
-        let otherProperties = _.omit(this.properties, 'cardCondition', 'player');
+
+        // create a copy of properties without cardCondition or player
+        let extractedProperties;
+        {
+            let { cardCondition, player, ...otherProperties } = this.properties;
+            extractedProperties = otherProperties;
+        }
 
         let buttons = [];
         let waitingPromptTitle = '';
@@ -98,7 +114,7 @@ class AbilityTargetCard {
             }
         }
         let mustSelect = this.selector.getAllLegalTargets(context, player).filter((card) =>
-            card.getEffects(EffectName.MustBeChosen).some((restriction) => restriction.isMatch('target', context))
+            card.getEffectValues(EffectName.MustBeChosen).some((restriction) => restriction.isMatch('target', context))
         );
         let promptProperties = {
             waitingPromptTitle: waitingPromptTitle,
@@ -129,7 +145,7 @@ class AbilityTargetCard {
                 return true;
             }
         };
-        context.game.promptForSelect(player, Object.assign(promptProperties, otherProperties));
+        context.game.promptForSelect(player, Object.assign(promptProperties, extractedProperties));
     }
 
     cancel(targetResults) {
@@ -168,13 +184,33 @@ class AbilityTargetCard {
     checkGameActionsForTargetsChosenByInitiatingPlayer(context) {
         return this.getAllLegalTargets(context).some((card) => {
             let contextCopy = this.getContextCopy(card, context);
-            if (this.properties.gameSystem.some((action) => action.hasTargetsChosenByInitiatingPlayer(contextCopy))) {
+            if (this.properties.immediateEffect.some((action) => action.hasTargetsChosenByInitiatingPlayer(contextCopy))) {
                 return true;
             } else if (this.dependentTarget) {
                 return this.dependentTarget.checkGameActionsForTargetsChosenByInitiatingPlayer(contextCopy);
             }
             return false;
         });
+    }
+
+    /**
+     * Checks whether the target's provided location filters have at least one legal location for the provided
+     * card types. This is to catch situations in which a mismatched location and card type was accidentally
+     * provided, which would cause target resolution to always silently fail to find any legal targets.
+     */
+    validateLocationLegalForTarget(properties) {
+        if (!properties.locationFilter || !properties.cardType) {
+            return;
+        }
+
+        for (const type of Array.isArray(properties.cardType) ? properties.cardType : [properties.cardType]) {
+            const legalLocations = defaultLegalLocationsForCardTypes(type);
+            if (legalLocations.some((location) => cardLocationMatches(location, properties.locationFilter))) {
+                return;
+            }
+        }
+
+        Contract.fail(`Target location filters '${properties.locationFilter}' for ability has no overlap with legal locations for target card types '${properties.cardType}', so target resolution is guaranteed to find no legal targets`);
     }
 }
 

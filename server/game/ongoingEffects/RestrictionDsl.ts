@@ -1,5 +1,5 @@
 import { MoveCardSystem } from '../gameSystems/MoveCardSystem';
-import { EffectValue } from '../core/effect/effectImpl/EffectValue';
+import { OngoingEffectValueWrapper } from '../core/ongoingEffect/effectImpl/OngoingEffectValueWrapper';
 import { Location } from '../core/Constants';
 
 const getApplyingPlayer = (effect) => {
@@ -12,8 +12,8 @@ const getApplyingPlayer = (effect) => {
 export const restrictionDsl = {
     // abilitiesTriggeredByOpponents: (context, effect) =>
     //     context.player === getApplyingPlayer(effect).opponent &&
-    //     context.ability.isTriggeredAbility() &&
-    //     context.ability.abilityType !== AbilityTypes.ForcedReaction &&
+    //     context.ability.isActivatedAbility() &&
+    //     context.ability.abilityType !== AbilityTypes.TriggeredAbility &&
     //     context.ability.abilityType !== AbilityTypes.ForcedInterrupt,
     // adjacentCharacters: (context, effect) =>
     //     context.source.type === CardTypes.Character &&
@@ -27,8 +27,8 @@ export const restrictionDsl = {
     // attackedProvinceNonForced: (context) =>
     //     context.game.currentConflict &&
     //     context.game.currentConflict.getConflictProvinces().includes(context.source) &&
-    //     context.ability.isTriggeredAbility() &&
-    //     context.ability.abilityType !== AbilityTypes.ForcedReaction &&
+    //     context.ability.isActivatedAbility() &&
+    //     context.ability.abilityType !== AbilityTypes.TriggeredAbility &&
     //     context.ability.abilityType !== AbilityTypes.ForcedInterrupt,
     // attackingCharacters: (context) =>
     //     context.game.currentConflict && context.source.type === CardTypes.Character && context.source.isAttacking(),
@@ -83,7 +83,7 @@ export const restrictionDsl = {
     //     context.player === getApplyingPlayer(effect).opponent &&
     //     context.source.type === CardTypes.Event,
     // opponentsTriggeredAbilities: (context, effect) =>
-    //     context.player === getApplyingPlayer(effect).opponent && context.ability.isTriggeredAbility(),
+    //     context.player === getApplyingPlayer(effect).opponent && context.ability.isActivatedAbility(),
     // opponentsCardAbilities: (context, effect) =>
     //     context.player === getApplyingPlayer(effect).opponent && context.ability.isCardAbility(),
     // opponentsCharacters: (context, effect) =>
@@ -99,8 +99,8 @@ export const restrictionDsl = {
     // keywordAbilities: (context) => context.ability.isKeywordAbility(),
     // nonKeywordAbilities: (context) => !context.ability.isKeywordAbility(),
     // nonForcedAbilities: (context) =>
-    //     context.ability.isTriggeredAbility() &&
-    //     context.ability.abilityType !== AbilityTypes.ForcedReaction &&
+    //     context.ability.isActivatedAbility() &&
+    //     context.ability.abilityType !== AbilityTypes.TriggeredAbility &&
     //     context.ability.abilityType !== AbilityTypes.ForcedInterrupt,
     // equalOrMoreExpensiveCharacterTriggeredAbilities: (context, effect, card) =>
     //     context.source.type === CardTypes.Character &&

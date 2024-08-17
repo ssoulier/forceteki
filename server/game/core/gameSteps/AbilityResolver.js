@@ -1,10 +1,9 @@
-const _ = require('underscore');
-
 const { BaseStepWithPipeline } = require('./BaseStepWithPipeline.js');
 const { SimpleStep } = require('./SimpleStep.js');
 const InitiateCardAbilityEvent = require('../event/InitiateCardAbilityEvent.js');
 const InitiateAbilityEventWindow = require('./abilityWindow/InitiateAbilityEventWindow.js');
 const { Location, Stage, CardType, EventName } = require('../Constants.js');
+const { GameEvent } = require('../event/GameEvent.js');
 
 // TODO: convert to TS
 class AbilityResolver extends BaseStepWithPipeline {
@@ -38,9 +37,9 @@ class AbilityResolver extends BaseStepWithPipeline {
     initialise() {
         this.pipeline.initialise([
             // new SimpleStep(this.game, () => this.createSnapshot()),
-            new SimpleStep(this.game, () => this.resolveEarlyTargets()),
-            new SimpleStep(this.game, () => this.checkForCancelOrPass()),
-            new SimpleStep(this.game, () => this.openInitiateAbilityEventWindow()),
+            new SimpleStep(this.game, () => this.resolveEarlyTargets(), 'resolveEarlyTargets'),
+            new SimpleStep(this.game, () => this.checkForCancelOrPass(), 'checkForCancelOrPass'),
+            new SimpleStep(this.game, () => this.openInitiateAbilityEventWindow(), 'openInitiateAbilityEventWindow'),
         ]);
     }
 
@@ -67,7 +66,7 @@ class AbilityResolver extends BaseStepWithPipeline {
                 context: this.context
             };
             if (this.context.ability.isCardPlayed()) {
-                this.events.push(this.game.getEvent(EventName.OnCardPlayed, {
+                this.events.push(new GameEvent(EventName.OnCardPlayed, {
                     player: this.context.player,
                     card: this.context.source,
                     context: this.context,
@@ -78,27 +77,27 @@ class AbilityResolver extends BaseStepWithPipeline {
                     resolver: this
                 }));
             }
-            if (this.context.ability.isTriggeredAbility()) {
-                this.events.push(this.game.getEvent(EventName.OnCardAbilityTriggered, {
+            if (this.context.ability.isActivatedAbility()) {
+                this.events.push(new GameEvent(EventName.OnCardAbilityTriggered, {
                     player: this.context.player,
                     card: this.context.source,
                     context: this.context
                 }));
             }
         }
-        this.events.push(this.game.getEvent(eventName, eventProps, () => this.queueInitiateAbilitySteps()));
+        this.events.push(new GameEvent(eventName, eventProps, () => this.queueInitiateAbilitySteps()));
         this.game.queueStep(new InitiateAbilityEventWindow(this.game, this.events));
     }
 
     queueInitiateAbilitySteps() {
-        this.queueStep(new SimpleStep(this.game, () => this.resolveCosts()));
-        this.queueStep(new SimpleStep(this.game, () => this.payCosts()));
-        this.queueStep(new SimpleStep(this.game, () => this.checkCostsWerePaid()));
-        this.queueStep(new SimpleStep(this.game, () => this.resolveTargets()));
-        this.queueStep(new SimpleStep(this.game, () => this.checkForCancelOrPass()));
-        this.queueStep(new SimpleStep(this.game, () => this.initiateAbilityEffects()));
-        this.queueStep(new SimpleStep(this.game, () => this.executeHandler()));
-        this.queueStep(new SimpleStep(this.game, () => this.moveEventCardToDiscard()));
+        this.game.queueSimpleStep(() => this.resolveCosts(), 'resolveCosts');
+        this.game.queueSimpleStep(() => this.payCosts(), 'payCosts');
+        this.game.queueSimpleStep(() => this.checkCostsWerePaid(), 'checkCostsWerePaid');
+        this.game.queueSimpleStep(() => this.resolveTargets(), 'resolveTargets');
+        this.game.queueSimpleStep(() => this.checkForCancelOrPass(), 'checkForCancelOrPass');
+        this.game.queueSimpleStep(() => this.initiateAbilityEffects(), 'initiateAbilityEffects');
+        this.game.queueSimpleStep(() => this.executeHandler(), 'executeHandler');
+        this.game.queueSimpleStep(() => this.moveEventCardToDiscard(), 'moveEventCardToDiscard');
     }
 
     resolveEarlyTargets() {
@@ -114,7 +113,7 @@ class AbilityResolver extends BaseStepWithPipeline {
         }
 
         if (this.passAbilityHandler && !this.passAbilityHandler.hasBeenShown) {
-            this.queueStep(new SimpleStep(this.game, () => this.checkForPass()));
+            this.game.queueSimpleStep(() => this.checkForPass(), 'checkForPass');
             return;
         }
 
@@ -182,7 +181,7 @@ class AbilityResolver extends BaseStepWithPipeline {
         if (this.cancelled) {
             return;
         }
-        this.cancelled = _.any(this.costResults.events, (event) => event.getResolutionEvent().cancelled);
+        this.cancelled = this.costResults.events.some((event) => event.getResolutionEvent().cancelled);
         if (this.cancelled) {
             this.game.addMessage('{0} attempted to use {1}, but did not successfully pay the required costs', this.context.player, this.context.source);
         }
@@ -225,13 +224,13 @@ class AbilityResolver extends BaseStepWithPipeline {
         }
         this.context.ability.displayMessage(this.context);
 
-        if (this.context.ability.isTriggeredAbility()) {
+        if (this.context.ability.isActivatedAbility()) {
             // TODO EVENTS: need to remove 'BeingPlayed' reference here and just send directly to discard (should already be there since this is triggering off an already-played card)
             // If this is an event, move it to 'being played', and queue a step to send it to the discard pile after it resolves
             if (this.context.ability.isCardPlayed()) {
                 this.game.actions.moveCard({ destination: Location.BeingPlayed }).resolve(this.context.source, this.context);
             }
-            this.game.openAdditionalAbilityStepEventWindow(new InitiateCardAbilityEvent({ card: this.context.source, context: this.context }, () => this.initiateAbility = true));
+            this.game.openThenEventWindow(new InitiateCardAbilityEvent({ card: this.context.source, context: this.context }, () => this.initiateAbility = true));
         } else {
             this.initiateAbility = true;
         }
@@ -241,7 +240,7 @@ class AbilityResolver extends BaseStepWithPipeline {
         if (this.cancelled || !this.initiateAbility) {
             return;
         }
-        this.context.stage = Stage.Effect;
+        this.context.stage = Stage.EffectTmp;
         this.context.ability.executeHandler(this.context);
     }
 
@@ -249,6 +248,11 @@ class AbilityResolver extends BaseStepWithPipeline {
         if (this.context.source.location === Location.BeingPlayed) {
             this.context.player.moveCard(this.context.source, Location.Discard);
         }
+    }
+
+    /** @override */
+    toString() {
+        return `'AbilityResolver: ${this.context.ability}'`;
     }
 }
 

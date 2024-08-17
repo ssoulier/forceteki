@@ -1,6 +1,6 @@
 import type { AbilityContext } from '../core/ability/AbilityContext.js';
 import PlayerAction from '../core/ability/PlayerAction.js';
-import { EffectName, EventName, Location, PhaseName, PlayType, TargetMode, WildcardLocation } from '../core/Constants.js';
+import { AbilityRestriction, EffectName, EventName, Location, PhaseName, PlayType, TargetMode, WildcardLocation } from '../core/Constants.js';
 import { isArena } from '../core/utils/EnumHelpers.js';
 import { exhaustSelf } from '../costs/CostLibrary.js';
 import { attack } from '../gameSystems/GameSystemLibrary.js';
@@ -8,14 +8,11 @@ import type Player from '../core/Player.js';
 import Card from '../core/card/Card.js';
 import { unlimited } from '../core/ability/AbilityLimit.js';
 
-// TODO: rename to 'InitiateAttackAction'
-export class TriggerAttackAction extends PlayerAction {
-    title = 'Attack';
-
+export class InitiateAttackAction extends PlayerAction {
     public constructor(card: Card) {
-        super(card, [exhaustSelf()], {
-            gameSystem: attack({ attacker: card }),
-            location: WildcardLocation.AnyAttackable,
+        super(card, 'Attack', [exhaustSelf()], {
+            immediateEffect: attack({ attacker: card }),
+            locationFilter: WildcardLocation.AnyAttackable,
             activePromptTitle: 'Choose a target for attack'
         });
     }
@@ -33,8 +30,7 @@ export class TriggerAttackAction extends PlayerAction {
         ) {
             return 'location';
         }
-        // TODO: rename checkRestrictions to be clearer what the return value means
-        if (!context.player.checkRestrictions('cannotAttack', context)) {
+        if (context.player.hasRestriction(AbilityRestriction.Attack, context)) {
             return 'restriction';
         }
         return super.meetsRequirements(context);
@@ -45,7 +41,7 @@ export class TriggerAttackAction extends PlayerAction {
         context.game.openEventWindow([
             attack({
                 attacker: context.source
-            }).getEvent(context.target, context)
+            }).generateEvent(context.target, context)
         ]);
     }
 }

@@ -5,23 +5,23 @@ interface ITriggeredAbilityContextProperties extends IAbilityContextProperties {
     event: any;
 }
 
-export class TriggeredAbilityContext<S = Card> extends AbilityContext<S> {
-    event: any;
+export class TriggeredAbilityContext<TSource = Card> extends AbilityContext<TSource> {
+    public event: any;
 
-    constructor(properties: ITriggeredAbilityContextProperties) {
+    public constructor(properties: ITriggeredAbilityContextProperties) {
         super(properties);
         this.event = properties.event;
     }
 
-    override createCopy(newProps: unknown) {
+    public override createCopy(newProps: unknown) {
         return new TriggeredAbilityContext<this>(Object.assign(this.getProps(), newProps));
     }
 
-    override getProps() {
+    public override getProps() {
         return Object.assign(super.getProps(), { event: this.event });
     }
 
-    cancel() {
+    public cancel() {
         this.event.cancel();
     }
 }

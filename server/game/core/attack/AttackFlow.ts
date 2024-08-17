@@ -19,7 +19,7 @@ D.9 Duel ends.
  */
 
 export class AttackFlow extends BaseStepWithPipeline {
-    constructor(
+    public constructor(
         game: Game,
         private attack: Attack,
         private damageHandler: (attack: Attack) => void,
@@ -27,18 +27,18 @@ export class AttackFlow extends BaseStepWithPipeline {
     ) {
         super(game);
         this.pipeline.initialise([
-            new SimpleStep(this.game, () => this.setCurrentAttack()),
-            new SimpleStep(this.game, () => this.dealDamage()),
-            new SimpleStep(this.game, () => this.completeAttack()),
-            new SimpleStep(this.game, () => this.cleanUpAttack()),
-            // new SimpleStep(this.game, () => this.game.checkGameState(true))
+            new SimpleStep(this.game, () => this.setCurrentAttack(), 'setCurrentAttack'),
+            new SimpleStep(this.game, () => this.dealDamage(), 'dealDamage'),
+            new SimpleStep(this.game, () => this.completeAttack(), 'completeAttack'),
+            new SimpleStep(this.game, () => this.cleanUpAttack(), 'cleanUpAttack'),
+            // new SimpleStep(this.game, () => this.game.resolveGameState(true))
         ]);
     }
 
     private setCurrentAttack() {
         this.attack.previousAttack = this.game.currentAttack;
         this.game.currentAttack = this.attack;
-        // this.game.checkGameState(true);
+        // this.game.resolveGameState(true);
     }
 
     private dealDamage() {
@@ -46,7 +46,7 @@ export class AttackFlow extends BaseStepWithPipeline {
     }
 
     private completeAttack() {
-        this.game.raiseEvent(EventName.OnAttackCompleted, { attack: this.attack });
+        this.game.createEventAndOpenWindow(EventName.OnAttackCompleted, { attack: this.attack });
     }
 
     private cleanUpAttack() {

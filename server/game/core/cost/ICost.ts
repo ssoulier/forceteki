@@ -1,7 +1,7 @@
 import { AbilityContext } from '../ability/AbilityContext';
 import { GameSystem } from '../gameSystem/GameSystem';
 import { TriggeredAbilityContext } from '../ability/TriggeredAbilityContext';
-import { Event } from '../event/Event';
+import { GameEvent } from '../event/GameEvent';
 import Player from '../Player.js';
 
 export interface Result {
@@ -18,15 +18,15 @@ export interface ICost {
     selectCardName?(player: Player, cardName: string, context: AbilityContext): boolean;
     promptsPlayer?: boolean;
     dependsOn?: string;
-    isPrintedFateCost?: boolean;
+    isPrintedResourceCost?: boolean;
     isPlayCost?: boolean;
     canIgnoreForTargeting?: boolean;
 
     getActionName?(context: AbilityContext): string;
     getCostMessage?(context: AbilityContext): unknown[];
     hasTargetsChosenByInitiatingPlayer?(context: AbilityContext): boolean;
-    addEventsToArray?(events: any[], context: AbilityContext, result?: Result): void;
+    generateEventsForAllTargets?(context: AbilityContext, result?: Result): GameEvent[];
     resolve?(context: AbilityContext, result: Result): void;
-    payEvent?(context: TriggeredAbilityContext): Event | Event[];
+    payEvent?(context: TriggeredAbilityContext): GameEvent | GameEvent[];
     pay?(context: TriggeredAbilityContext): void;
 }

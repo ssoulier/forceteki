@@ -1,3 +1,6 @@
+// allow block comments without spaces so we can have compact jsdoc descriptions in this file
+/* eslint @stylistic/js/lines-around-comment: off */
+
 export enum Location {
     Hand = 'hand',
     Deck = 'deck',
@@ -21,6 +24,8 @@ export enum WildcardLocation {
 }
 
 export type LocationFilter = Location | WildcardLocation;
+
+export type Arena = Location.GroundArena | Location.SpaceArena;
 
 export enum PlayType {
     PlayFromHand = 'playFromHand',
@@ -82,7 +87,7 @@ export enum Duration {
 
 export enum Stage {
     Cost = 'cost',
-    Effect = 'effect',
+    EffectTmp = 'effect',
     PreTarget = 'preTarget',
     Target = 'target'
 }
@@ -160,10 +165,9 @@ export enum EventName {
     OnCardReturnedToHand = 'onCardReturnedToHand',
 }
 
+// TODO: rename 'Persistent' to 'ConstantAbility'?
 export enum AbilityType {
     Action = 'action',
-    ForcedReaction = 'forcedReaction',
-    Reaction = 'reaction',
     TriggeredAbility = 'triggeredAbility',
     Persistent = 'persistent',
     OtherEffects = 'otherEffects'
@@ -227,4 +231,26 @@ export enum Trait {
     NewRepublic = 'new republic',
     Modification = 'modification',
     Resistance = 'resistance'
+}
+
+// TODO: these could stand to be reorganized and cleaned up a bit
+export enum AbilityRestriction {
+    /** Restricts a card from being declared as an attacker */
+    Attack = 'attack',
+    /** Restricts a card from being declared as an attack target */
+    BeAttacked = 'beAttacked',
+    /** Restricts a player's ability to play units */
+    PlayUnit = 'playUnit',
+    /** Restricts a player's ability to put a certain card or type of card into play */
+    PutIntoPlay = 'putIntoPlay',
+    /** Restricts a card from being played. Typically used for event cards, see {@link AbilityRestriction.PutIntoPlay} for other card types */
+    Play = 'play',
+    /** Restricts a card or card type from being able to enter play. See {@link AbilityRestriction.Play} for event cards */
+    EnterPlay = 'enterPlay',
+    /** Restricts a game object from being targetable by abilities */
+    Target = 'target',  // TODO: rename to AbilityTarget
+    TriggerAbilities = 'triggerAbilities',
+    InitiateKeywords = 'initiateKeywords',
+    ReceiveDamage = 'receiveDamage',
+    BeHealed = 'beHealed',
 }

@@ -1,4 +1,4 @@
-import AbilityDsl from '../../AbilityDsl';
+import AbilityHelper from '../../AbilityHelper';
 import CardAbilityStep from '../ability/CardAbilityStep';
 import { Location, CardType, EffectName, RelativePlayer } from '../Constants';
 import { IInitiateAttack } from '../../Interfaces';
@@ -9,7 +9,7 @@ export const addInitiateAttackProperties = (properties) => {
         return;
     }
 
-    properties.targets = {
+    properties.targetResolvers = {
         attacker: {
             cardType: CardType.Unit,
             player: (context) => {
@@ -20,14 +20,16 @@ export const addInitiateAttackProperties = (properties) => {
             cardCondition: (card, context) => checkAttackerCondition(card, context, properties),
 
             // this is to pay the exhaust cost for the attacker
-            gameSystem: AbilityDsl.immediateEffects.exhaust({ isCost: true })
+            // TODO: need to investigate to see if this resolves at the right point in the attack
+            // (experiment with something that would trigger off of the exhaust to make sure it happens at the right time)
+            immediateEffect: AbilityHelper.immediateEffects.exhaust({ isCost: true })
         },
         attackTarget: {
             dependsOn: 'attacker',
             // TODO: if we want to choose a specific character in advance to initiate the attack,
             // change the first parameter here from 'undefined'
             ...getBaselineAttackTargetProperties(undefined, properties),
-            gameSystem: AbilityDsl.immediateEffects.attack((context) => {
+            immediateEffect: AbilityHelper.immediateEffects.attack((context) => {
                 const attackProperties = getProperty(properties, context);
                 return Object.assign({
                     attacker: context.targets.attacker

@@ -1,5 +1,6 @@
-import AbilityDsl from '../../AbilityDsl';
+import AbilityHelper from '../../AbilityHelper';
 import Card from '../../core/card/Card';
+import { AbilityRestriction } from '../../core/Constants';
 import { countUniqueAspects } from '../../core/utils/Helpers';
 
 export default class SabineWrenExplosivesArtist extends Card {
@@ -10,13 +11,12 @@ export default class SabineWrenExplosivesArtist extends Card {
         };
     }
 
-    override setupCardAbilities() {
+    protected override setupCardAbilities() {
         this.constantAbility({
-            // UP NEXT: helper fn on Card to get all friendly units in play
-            condition: () => countUniqueAspects(this.controller.getUnitsInPlay((card) => card !== this)) >= 3,
+            title: 'Sabine passive',
+            condition: () => countUniqueAspects(this.controller.getOtherUnitsInPlay(this, null)) >= 3,
 
-            // UP NEXT: convert this to a named effect
-            effect: AbilityDsl.ongoingEffects.cardCannot('beAttacked')
+            ongoingEffect: AbilityHelper.ongoingEffects.cardCannot(AbilityRestriction.BeAttacked)
         });
     }
 }

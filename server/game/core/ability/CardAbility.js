@@ -1,8 +1,7 @@
 const AbilityLimit = require('./AbilityLimit.js');
-const AbilityDsl = require('../../AbilityDsl.js');
 const CardAbilityStep = require('./CardAbilityStep.js');
 const Costs = require('../../costs/CostLibrary.js');
-const { Location, CardType, EffectName, WildcardLocation, AbilityType } = require('../Constants.js');
+const { Location, CardType, EffectName, WildcardLocation, AbilityType, PhaseName } = require('../Constants.js');
 const { cardLocationMatches } = require('../utils/EnumHelpers.js');
 const { addInitiateAttackProperties } = require('../attack/AttackHelper.js');
 
@@ -15,8 +14,7 @@ class CardAbility extends CardAbilityStep {
 
         this.title = properties.title;
 
-        // TODO: need to change this so that the default limit is unlimited (might break some things)
-        this.limit = properties.limit || AbilityLimit.perRound(1);
+        this.limit = properties.limit || AbilityLimit.unlimited();
         this.limit.registerEvents(game);
         this.limit.ability = this;
         this.abilityCost = this.cost;
@@ -40,20 +38,24 @@ class CardAbility extends CardAbilityStep {
 
         // TODO EVENT: this is where the actual payment and activation of an event card happens, this needs to be
         // changed to behave more like a unit card in terms of how it's played
-        if (card.getType() === CardType.Event && !this.isKeywordAbility()) {
+        if (card.isEvent() && !this.isKeywordAbility()) {
             this.cost = this.cost.concat(Costs.payAdjustableResourceCost());
         }
     }
 
     buildLocation(card, location) {
-        const DefaultLocationForType = {
-            event: Location.Hand,
-            leader: Location.Leader,
-            base: Location.Base,
-        };
+        let defaultLocationForType = null;
+        if (card.isEvent()) {
+            defaultLocationForType = Location.Hand;
+        } else if (card.isLeader()) {
+            defaultLocationForType = Location.Leader;
+        } else if (card.isBase()) {
+            defaultLocationForType = Location.Base;
+        } else {
+            defaultLocationForType = WildcardLocation.AnyArena;
+        }
 
-        // TODO: make this not have to be an array (was this way for provinces)
-        let defaultedLocation = [location || DefaultLocationForType[card.getType()] || WildcardLocation.AnyArena];
+        let defaultedLocation = [location || defaultLocationForType];
 
         return defaultedLocation;
     }
@@ -65,8 +67,8 @@ class CardAbility extends CardAbilityStep {
         }
 
         if (
-            (this.isTriggeredAbility() && !this.card.canTriggerAbilities(context, ignoredRequirements)) ||
-            (this.card.type === CardType.Event && !this.card.canPlay(context, context.playType))
+            (this.isActivatedAbility() && !this.card.canTriggerAbilities(context, ignoredRequirements)) ||
+            (this.card.isEvent() && !this.card.canPlay(context, context.playType))
         ) {
             return 'cannotTrigger';
         }
@@ -83,12 +85,12 @@ class CardAbility extends CardAbilityStep {
             return 'max';
         }
 
+        // TODO: enum for ignoredRequirements strings?
+        // TODO: is this phase ability check correct for SWU? not sure about constant abilities during regroup phase
         if (
             !ignoredRequirements.includes('phase') &&
             !this.isKeywordAbility() &&
-            this.card.isDynasty &&  // TODO: remove the dynasty stuff here
-            this.card.type === CardType.Event &&
-            context.game.currentPhase !== 'dynasty'
+            context.game.currentPhase !== PhaseName.Action
         ) {
             return 'phase';
         }
@@ -101,19 +103,19 @@ class CardAbility extends CardAbilityStep {
         let costs = super.getCosts(context, playCosts);
         if (!context.subResolution && triggerCosts && context.player.anyEffect(EffectName.AdditionalTriggerCost)) {
             const additionalTriggerCosts = context.player
-                .getEffects(EffectName.AdditionalTriggerCost)
+                .getEffectValues(EffectName.AdditionalTriggerCost)
                 .map((effect) => effect(context));
             costs = costs.concat(...additionalTriggerCosts);
         }
         if (!context.subResolution && triggerCosts && context.source.anyEffect(EffectName.AdditionalTriggerCost)) {
             const additionalTriggerCosts = context.source
-                .getEffects(EffectName.AdditionalTriggerCost)
+                .getEffectValues(EffectName.AdditionalTriggerCost)
                 .map((effect) => effect(context));
             costs = costs.concat(...additionalTriggerCosts);
         }
         if (!context.subResolution && playCosts && context.player.anyEffect(EffectName.AdditionalPlayCost)) {
             const additionalPlayCosts = context.player
-                .getEffects(EffectName.AdditionalPlayCost)
+                .getEffectValues(EffectName.AdditionalPlayCost)
                 .map((effect) => effect(context));
             return costs.concat(...additionalPlayCosts);
         }
@@ -121,12 +123,12 @@ class CardAbility extends CardAbilityStep {
     }
 
     getReducedCost(context) {
-        let fateCost = this.cost.find((cost) => cost.getReducedCost);
-        return fateCost ? fateCost.getReducedCost(context) : 0;
+        let resourceCost = this.cost.find((cost) => cost.getReducedCost);
+        return resourceCost ? resourceCost.getReducedCost(context) : 0;
     }
 
     isInValidLocation(context) {
-        return this.card.type === CardType.Event
+        return this.card.isEvent()
             ? context.player.isCardInPlayableLocation(context.source, context.playType)
             : cardLocationMatches(this.card.location, this.location);
     }
@@ -144,9 +146,9 @@ class CardAbility extends CardAbilityStep {
     }
 
     /** @override */
-    displayMessage(context, messageVerb = context.source.type === CardType.Event ? 'plays' : 'uses') {
+    displayMessage(context, messageVerb = context.source.isEvent() ? 'plays' : 'uses') {
         if (
-            context.source.type === CardType.Event &&
+            context.source.isEvent() &&
             context.source.isConflict &&
             context.source.location !== Location.Hand &&
             context.source.location !== Location.BeingPlayed
@@ -209,7 +211,7 @@ class CardAbility extends CardAbilityStep {
         let effectArgs = [];
         let extraArgs = null;
         if (!effectMessage) {
-            let gameActions = this.getGameActions(context).filter((gameSystem) => gameSystem.hasLegalTarget(context));
+            let gameActions = this.getGameSystems(context).filter((gameSystem) => gameSystem.hasLegalTarget(context));
             if (gameActions.length > 0) {
                 // effects with multiple game actions really need their own effect message
                 [effectMessage, extraArgs] = gameActions[0].getEffectMessage(context);
@@ -236,14 +238,13 @@ class CardAbility extends CardAbilityStep {
     }
 
     /** @override */
-    isCardPlayed() {
-        return !this.isKeywordAbility() && this.card.getType() === CardType.Event;
+    isActivatedAbility() {
+        return [AbilityType.Action, AbilityType.TriggeredAbility].includes(this.abilityType);
     }
 
-    // TODO: rename this, it meant something else in L5R and there's a name collision now
     /** @override */
-    isTriggeredAbility() {
-        return true;
+    isCardPlayed() {
+        return !this.isKeywordAbility() && this.card.isEvent();
     }
 }
 

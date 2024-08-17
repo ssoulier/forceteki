@@ -1,8 +1,8 @@
 import { v1 as uuidV1 } from 'uuid';
 
 import type { AbilityContext } from './ability/AbilityContext';
-import { EffectName, Stage } from './Constants';
-import type { ICardEffect } from './effect/ICardEffect';
+import { AbilityRestriction, EffectName, Stage } from './Constants';
+import type { IOngoingCardEffect } from './ongoingEffect/IOngoingCardEffect';
 import type Game from './Game';
 import type { GameSystem } from './gameSystem/GameSystem';
 import * as GameSystems from '../gameSystems/GameSystemLibrary';
@@ -11,9 +11,12 @@ import type Player from './Player';
 export abstract class GameObject {
     public uuid = uuidV1();
     protected id: string;
-    protected printedType = '';
-    private effects = [] as ICardEffect[];
+    private effects = [] as IOngoingCardEffect[];
     private nameField: string;
+
+    public get name() {
+        return this.nameField;
+    }
 
     public constructor(
         public game: Game,
@@ -23,35 +26,26 @@ export abstract class GameObject {
         this.nameField = name;
     }
 
-    public get type() {
-        return this.getType();
-    }
-
-    public get name() {
-        return this.nameField;
-    }
-
-    public addEffect(effect: ICardEffect) {
+    public addEffect(effect: IOngoingCardEffect) {
         this.effects.push(effect);
     }
 
-    public removeEffect(effect: ICardEffect) {
+    public removeEffect(effect: IOngoingCardEffect) {
         this.effects = this.effects.filter((e) => e !== effect);
     }
 
-    // UP NEXT: rename to getEffectValues
-    public getEffects<V = any>(type: EffectName): V[] {
-        const filteredEffects = this.getRawEffects().filter((effect) => effect.type === type);
+    public getEffectValues<V = any>(type: EffectName): V[] {
+        const filteredEffects = this.getEffects().filter((effect) => effect.type === type);
         return filteredEffects.map((effect) => effect.getValue(this));
     }
 
     public sumEffects(type: EffectName) {
-        const filteredEffects = this.getEffects(type);
+        const filteredEffects = this.getEffectValues(type);
         return filteredEffects.reduce((total, effect) => total + effect, 0);
     }
 
     public anyEffect(type: EffectName) {
-        return this.getEffects(type).length > 0;
+        return this.getEffectValues(type).length > 0;
     }
 
     public allowGameAction(actionType: string, context = this.game.getFrameworkContext()) {
@@ -60,20 +54,17 @@ export abstract class GameObject {
             const gameSystem: GameSystem = gameActionFactory();
             return gameSystem.canAffect(this, context);
         }
-        return this.checkRestrictions(actionType, context);
+        return !this.hasRestriction(actionType, context);
     }
 
-    public checkRestrictions(actionType: string, context?: AbilityContext) {
-        return !this.getEffects(EffectName.AbilityRestrictions).some((restriction) =>
+    /**
+     * Returns true if the card has any ability restriction matching the given name. Restriction names
+     * can be a value of {@link AbilityRestriction} or an arbitrary string such as a card name.
+     */
+    public hasRestriction(actionType: string, context?: AbilityContext) {
+        return this.getEffectValues(EffectName.AbilityRestrictions).some((restriction) =>
             restriction.isMatch(actionType, context, this)
         );
-    }
-
-    public getType() {
-        if (this.anyEffect(EffectName.ChangeType)) {
-            return this.mostRecentEffect(EffectName.ChangeType);
-        }
-        return this.printedType;
     }
 
     public getShortSummary() {
@@ -81,13 +72,12 @@ export abstract class GameObject {
             id: this.id,
             label: this.name,
             name: this.name,
-            type: this.getType(),
             uuid: this.uuid
         };
     }
 
     public canBeTargeted(context: AbilityContext, selectedCards: GameObject | GameObject[] = []) {
-        if (!this.checkRestrictions('target', context)) {
+        if (this.hasRestriction(AbilityRestriction.Target, context)) {
             return false;
         }
         let targets = selectedCards;
@@ -109,7 +99,7 @@ export abstract class GameObject {
             }
 
             // return (context.player.countSpendableResources() >= targetingCost);
-        } else if (context.stage === Stage.Target || context.stage === Stage.Effect) {
+        } else if (context.stage === Stage.Target || context.stage === Stage.EffectTmp) {
             //We paid costs first, or targeting has to be done after costs have been paid
             // return (context.player.countSpendableResources() >= targetingCost);
         }
@@ -122,12 +112,11 @@ export abstract class GameObject {
     }
 
     public mostRecentEffect(type: EffectName) {
-        const effects = this.getEffects(type);
+        const effects = this.getEffectValues(type);
         return effects[effects.length - 1];
     }
 
-    // UP NEXT: rename to getEffects (and current getEffects to getEffectValues)
-    protected getRawEffects() {
+    protected getEffects() {
         const suppressEffects = this.effects.filter((effect) => effect.type === EffectName.SuppressEffects);
         const suppressedEffects = suppressEffects.reduce((array, effect) => array.concat(effect.getValue(this)), []);
         return this.effects.filter((effect) => !suppressedEffects.includes(effect));

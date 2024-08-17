@@ -1,7 +1,6 @@
 /* global describe, beforeEach, jasmine */
 /* eslint camelcase: 0, no-invalid-this: 0 */
 
-const _ = require('underscore');
 const { GameMode } = require('../../build/GameMode.js');
 const Contract = require('../../build/game/core/utils/Contract.js');
 
@@ -52,16 +51,14 @@ var customMatchers = {
                 var buttons = actual.currentPrompt().buttons;
                 var result = {};
 
-                result.pass = _.any(
-                    buttons,
+                result.pass = buttons.some(
                     (button) => !button.disabled && util.equals(button.text, expected, customEqualityMatchers)
                 );
 
                 if (result.pass) {
                     result.message = `Expected ${actual.name} not to have enabled prompt button '${expected}' but it did.`;
                 } else {
-                    var buttonText = _.map(
-                        buttons,
+                    var buttonText = buttons.map(
                         (button) => '[' + button.text + (button.disabled ? ' (disabled) ' : '') + ']'
                     ).join('\n');
                     result.message = `Expected ${actual.name} to have enabled prompt button '${expected}' but it had buttons:\n${buttonText}`;
@@ -77,16 +74,14 @@ var customMatchers = {
                 var buttons = actual.currentPrompt().buttons;
                 var result = {};
 
-                result.pass = _.any(
-                    buttons,
+                result.pass = buttons.some(
                     (button) => button.disabled && util.equals(button.text, expected, customEqualityMatchers)
                 );
 
                 if (result.pass) {
                     result.message = `Expected ${actual.name} not to have disabled prompt button '${expected}' but it did.`;
                 } else {
-                    var buttonText = _.map(
-                        buttons,
+                    var buttonText = buttons.map(
                         (button) => '[' + button.text + (button.disabled ? ' (disabled) ' : '') + ']'
                     ).join('\n');
                     result.message = `Expected ${actual.name} to have disabled prompt button '${expected}' but it had buttons:\n${buttonText}`;
@@ -99,7 +94,7 @@ var customMatchers = {
     toBeAbleToSelect: function () {
         return {
             compare: function (player, card) {
-                if (_.isString(card)) {
+                if (typeof card === 'string') {
                     card = player.findCardByName(card);
                 }
                 let result = {};
@@ -125,7 +120,7 @@ var customMatchers = {
 
                 let cardsPopulated = [];
                 for (let card of cards) {
-                    if (_.isString(card)) {
+                    if (typeof card === 'string') {
                         cardsPopulated.push(player.findCardByName(card));
                     } else {
                         cardsPopulated.push(card);
@@ -166,7 +161,7 @@ var customMatchers = {
 
                 let cardsPopulated = [];
                 for (let card of cards) {
-                    if (_.isString(card)) {
+                    if (typeof card === 'string') {
                         cardsPopulated.push(player.findCardByName(card));
                     } else {
                         cardsPopulated.push(card);
@@ -201,7 +196,7 @@ var customMatchers = {
     toHaveAvailableActionWhenClickedInActionPhaseBy: function () {
         return {
             compare: function (card, player) {
-                if (_.isString(card)) {
+                if (typeof card === 'string') {
                     card = player.findCardByName(card);
                 }
                 let result = {};
@@ -265,7 +260,7 @@ beforeEach(function () {
 });
 
 global.integration = function (definitions) {
-    describe('integration', function () {
+    describe('- integration -', function () {
         beforeEach(function () {
             Contract.configureAssertMode(Contract.AssertMode.Assert, true);
 
@@ -277,7 +272,7 @@ global.integration = function (definitions) {
             this.player1 = this.flow.player1;
             this.player2 = this.flow.player2;
 
-            _.each(ProxiedGameFlowWrapperMethods, (method) => {
+            ProxiedGameFlowWrapperMethods.forEach((method) => {
                 this[method] = (...args) => this.flow[method].apply(this.flow, args);
             });
 
@@ -318,51 +313,25 @@ global.integration = function (definitions) {
                 this.player2.damageToBase = options.player2.damageToBase ?? 0;
 
                 // set cards below - the playerinteractionwrapper will convert string names to real cards
-                // TODO: need to redesign the below, it's unintuitive to read and will probably lead to unintended side effects
 
-                //Field
-                this.player1.groundArena = options.player1.groundArena;
-                this.player2.groundArena = options.player2.groundArena;
-                this.player1.spaceArena = options.player1.spaceArena;
-                this.player2.spaceArena = options.player2.spaceArena;
-                //Resources
-                this.player1.resources = options.player1.resources;
-                this.player2.resources = options.player2.resources;
-                //Deck + discard
-                this.player1.hand = options.player1.hand;
-                this.player2.hand = options.player2.hand;
-                this.player1.discard = options.player1.discard;
-                this.player2.discard = options.player2.discard;
+                // Arenas
+                this.player1.setGroundArenaUnits(options.player1.groundArena);
+                this.player2.setGroundArenaUnits(options.player2.groundArena);
+                this.player1.setSpaceArenaUnits(options.player1.spaceArena);
+                this.player2.setSpaceArenaUnits(options.player2.spaceArena);
+                // Resources
+                this.player1.setResourceCards(options.player1.resources);
+                this.player2.setResourceCards(options.player2.resources);
+                // Hand + discard
+                this.player1.setHand(options.player1.hand);
+                this.player2.setHand(options.player2.hand);
+                this.player1.setDiscard(options.player1.discard);
+                this.player2.setDiscard(options.player2.discard);
 
-                // TODO: re-enable
+                // TODO: re-enable when we have tests to do during setup phase
                 // if (options.phase !== 'setup') {
-                //     this.game.checkGameState(true);
+                //     this.game.resolveGameState(true);
                 // }
-            };
-
-            this.initiateConflict = function (options = {}) {
-                if (!options.type) {
-                    options.type = 'military';
-                }
-                if (!options.ring) {
-                    options.ring = 'air';
-                }
-                let attackingPlayer = this.getPromptedPlayer(
-                    'Choose an elemental ring\n(click the ring again to change conflict type)'
-                );
-                if (!attackingPlayer) {
-                    throw new Error('Neither player can declare a conflict');
-                }
-                attackingPlayer.declareConflict(options.type, options.province, options.attackers, options.ring);
-                if (!options.defenders) {
-                    return;
-                }
-                let defendingPlayer = this.getPromptedPlayer('Choose defenders');
-                defendingPlayer.assignDefenders(options.defenders);
-                if (!options.jumpTo) {
-                    return;
-                }
-                this.noMoreActions();
             };
         });
 

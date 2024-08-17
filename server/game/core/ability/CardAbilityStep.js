@@ -5,6 +5,9 @@ const { Stage, AbilityType } = require('../Constants.js');
 /**
  * Represents one step from a card's text ability. Checks are simpler than for a
  * full card ability, since it is assumed the ability is already resolving (see `CardAbility.js`).
+ *
+ * The default handler for this will resolve the ability using a `ThenEventWindow` so that any triggered
+ * effects will not resolve until after the entire "Then" chain is done (see `ThenEventWindow` or SWU 29.2 for details)
  */
 class CardAbilityStep extends PlayerOrCardAbility {
     constructor(game, card, properties, abilityType = AbilityType.Action) {
@@ -15,6 +18,12 @@ class CardAbilityStep extends PlayerOrCardAbility {
         this.properties = properties;
         this.handler = properties.handler || this.executeGameActions;
         this.cannotTargetFirst = true;
+    }
+
+    /** @override */
+    executeHandler(context) {
+        this.handler(context);
+        this.game.queueSimpleStep(() => this.game.resolveGameState(), 'resolveState');
     }
 
     createContext(player = this.card.controller, event = null) {
@@ -59,30 +68,25 @@ class CardAbilityStep extends PlayerOrCardAbility {
         }
     }
 
-    getGameActions(context) {
+    getGameSystems(context) {
         // if there are any targets, look for gameActions attached to them
-        let actions = this.targets.reduce((array, target) => array.concat(target.getGameAction(context)), []);
+        let actions = this.targetResolvers.reduce((array, target) => array.concat(target.getGameSystem(context)), []);
         // look for a gameSystem on the ability itself, on an attachment execute that action on its parent, otherwise on the card itself
         return actions.concat(this.gameSystem);
     }
 
-    /** @override */
-    executeHandler(context) {
-        this.handler(context);
-        this.game.queueSimpleStep(() => this.game.checkGameState());
-    }
-
     executeGameActions(context) {
         context.events = [];
-        let actions = this.getGameActions(context);
+        let systems = this.getGameSystems(context);
         let then = this.properties.then;
         if (then && typeof then === 'function') {
             then = then(context);
         }
-        for (const action of actions) {
+        for (const system of systems) {
             this.game.queueSimpleStep(() => {
-                action.addEventsToArray(context.events, context);
-            });
+                context.events.push(...system.generateEventsForAllTargets(context));
+            },
+            `push ${system.name} events for ${this}`);
         }
         this.game.queueSimpleStep(() => {
             let eventsToResolve = context.events.filter((event) => !event.cancelled && !event.resolved);
@@ -95,11 +99,11 @@ class CardAbilityStep extends PlayerOrCardAbility {
                 let cardAbilityStep = new CardAbilityStep(this.game, this.card, then);
                 this.game.resolveAbility(cardAbilityStep.createContext(context.player));
             }
-        });
+        }, `resolve events for ${this}`);
     }
 
     openEventWindow(events) {
-        return this.game.openAdditionalAbilityStepEventWindow(events);
+        return this.game.openThenEventWindow(events);
     }
 
     /** @override */

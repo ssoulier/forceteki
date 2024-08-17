@@ -11,10 +11,10 @@ interface IContractCheckImpl {
 }
 
 class LoggingContractCheckImpl implements IContractCheckImpl {
-    constructor(private readonly breakpoint: boolean) {
+    public constructor(private readonly breakpoint: boolean) {
     }
 
-    fail(message: string): void {
+    public fail(message: string): void {
         if (this.breakpoint) {
             debugger;
         }
@@ -24,10 +24,10 @@ class LoggingContractCheckImpl implements IContractCheckImpl {
 }
 
 class AssertContractCheckImpl implements IContractCheckImpl {
-    constructor(private readonly breakpoint: boolean) {
+    public constructor(private readonly breakpoint: boolean) {
     }
 
-    fail(message: string): void {
+    public fail(message: string): void {
         if (this.breakpoint) {
             debugger;
         }
@@ -144,6 +144,15 @@ export function assertNonEmpty(ara: any[], message?: string): boolean {
     return true;
 }
 
+export function assertStringValue(val: string, message?: string): boolean {
+    assertNotNullLike(val);
+    if (val === '') {
+        contractCheckImpl.fail(message ?? 'String is empty');
+        return false;
+    }
+    return true;
+}
+
 export function assertHasKey<TKey>(map: Map<TKey, any>, key: TKey, message?: string): boolean {
     assertNotNullLike(map);
     if (!map.has(key)) {
@@ -173,6 +182,7 @@ export function fail(message: string): void {
     contractCheckImpl.fail(message);
 }
 
+// TODO: fix things so we don't need this
 const Contract = {
     AssertMode,
     configureAssertMode,
@@ -185,6 +195,7 @@ const Contract = {
     assertHasProperty,
     assertArraySize,
     assertNonEmpty,
+    assertStringValue,
     assertHasKey,
     assertPositiveNonZero,
     assertNonNegative,

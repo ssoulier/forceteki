@@ -1,20 +1,7 @@
 import { AbilityContext } from '../core/ability/AbilityContext';
 import { EventName, Location, RelativePlayer } from '../core/Constants';
 import type { ICost, Result } from '../core/cost/ICost';
-import { Event } from '../core/event/Event';
-import Card from '../core/card/Card';
-
-const CANCELLED = 'CANCELLED';
-const STOP = 'STOP';
-
-type PoolOption = Card | typeof CANCELLED | typeof STOP;
-interface Props {
-    reducedCost: number;
-    minFate?: number;
-    maxFate?: number;
-    pool?: PoolOption;
-    numberOfChoices?: number;
-}
+import { GameEvent } from '../core/event/GameEvent';
 
 export class AdjustableResourceCost implements ICost {
     public isPlayCost = true;
@@ -23,7 +10,7 @@ export class AdjustableResourceCost implements ICost {
     // used for extending this class if any cards have unique after pay hooks
     protected afterPayHook?: ((event: any) => void) = null;
 
-    constructor(public ignoreType: boolean) {}
+    public constructor(public ignoreType: boolean) {}
 
     public canPay(context: AbilityContext): boolean {
         if (context.source.printedCost === null) {
@@ -53,10 +40,10 @@ export class AdjustableResourceCost implements ICost {
         return context.player.getAdjustedCost(context.playType, context.source, null, this.ignoreType, context.costAspects);
     }
 
-    public payEvent(context: AbilityContext): Event {
+    public payEvent(context: AbilityContext): GameEvent {
         const amount = this.getReducedCost(context);
         context.costs.resources = amount;
-        return new Event(EventName.OnSpendResources, { amount, context }, (event) => {
+        return new GameEvent(EventName.OnSpendResources, { amount, context }, (event) => {
             event.context.player.markUsedAdjusters(context.playType, event.context.source);
             event.context.player.exhaustResources(amount);
 

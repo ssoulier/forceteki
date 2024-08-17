@@ -2,6 +2,7 @@ import type { AbilityContext } from '../ability/AbilityContext';
 import type Card from '../card/Card';
 import { CardType, EffectName, Location } from '../Constants';
 import { GameSystem as GameSystem, IGameSystemProperties as IGameSystemProperties } from './GameSystem';
+import { GameEvent } from '../event/GameEvent';
 // import { LoseFateAction } from './LoseFateAction';
 
 export interface ICardTargetSystemProperties extends IGameSystemProperties {
@@ -11,10 +12,10 @@ export interface ICardTargetSystemProperties extends IGameSystemProperties {
 /**
  * A {@link GameSystem} which targets a card or cards for its effect
  */
-// UP NEXT: mixin for Action types (CardAction, PlayerAction)?
+// TODO: mixin for Action types (CardAction, PlayerAction)?
 // TODO: could we remove the default generic parameter so that all child classes are forced to declare it
 export abstract class CardTargetSystem<TProperties extends ICardTargetSystemProperties = ICardTargetSystemProperties> extends GameSystem<TProperties> {
-    override targetType = [
+    protected override readonly targetType = [
         CardType.Unit,
         CardType.Upgrade,
         CardType.Event,
@@ -22,27 +23,17 @@ export abstract class CardTargetSystem<TProperties extends ICardTargetSystemProp
         CardType.Base,
     ];
 
-    override defaultTargets(context: AbilityContext): Card[] {
-        return [context.source];
-    }
+    public override generateEventsForAllTargets(context: AbilityContext, additionalProperties = {}): GameEvent[] {
+        const events: GameEvent[] = [];
 
-    override checkEventCondition(event: any, additionalProperties = {}): boolean {
-        return this.canAffect(event.card, event.context, additionalProperties);
-    }
-
-    override canAffect(target: Card, context: AbilityContext, additionalProperties = {}): boolean {
-        return super.canAffect(target, context, additionalProperties);
-    }
-
-    override addEventsToArray(events: any[], context: AbilityContext, additionalProperties = {}): void {
         const { target } = this.generatePropertiesFromContext(context, additionalProperties);
         for (const card of target as Card[]) {
             let allCostsPaid = true;
             const additionalCosts = card
-                .getEffects(EffectName.UnlessActionCost)
+                .getEffectValues(EffectName.UnlessActionCost)
                 .filter((properties) => properties.actionName === this.name);
 
-            if (context.player && context.ability && context.ability.targets && context.ability.targets.length > 0) {
+            if (context.player && context.ability && context.ability.targetResolvers && context.ability.targetResolvers.length > 0) {
                 // let targetForCost = [card];
 
                 // if (context.targets.challenger && context.targets.duelTarget) {
@@ -110,35 +101,45 @@ export abstract class CardTargetSystem<TProperties extends ICardTargetSystemProp
                                 this.getEffectMessage(context, additionalProperties)
                             );
                         }
-                    });
+                    }, 'resolve card targeting costs');
                 }
                 context.game.queueSimpleStep(() => {
                     if (allCostsPaid) {
-                        events.push(this.getEvent(card, context, additionalProperties));
+                        events.push(this.generateEvent(card, context, additionalProperties));
                     }
-                });
+                }, 'push card target event if targeting cost paid');
             } else {
                 if (allCostsPaid) {
-                    events.push(this.getEvent(card, context, additionalProperties));
+                    events.push(this.generateEvent(card, context, additionalProperties));
                 }
             }
         }
+
+        return events;
     }
 
-    override addPropertiesToEvent(event, card: Card, context: AbilityContext, additionalProperties = {}): void {
+    public override checkEventCondition(event: any, additionalProperties = {}): boolean {
+        return this.canAffect(event.card, event.context, additionalProperties);
+    }
+
+    public override addPropertiesToEvent(event, card: Card, context: AbilityContext, additionalProperties = {}): void {
         super.addPropertiesToEvent(event, card, context, additionalProperties);
         event.card = card;
     }
 
-    override isEventFullyResolved(event, card: Card, context: AbilityContext, additionalProperties): boolean {
+    public override isEventFullyResolved(event, card: Card, context: AbilityContext, additionalProperties): boolean {
         return event.card === card && super.isEventFullyResolved(event, card, context, additionalProperties);
+    }
+
+    protected override defaultTargets(context: AbilityContext): Card[] {
+        return [context.source];
     }
 
     protected updateLeavesPlayEvent(event, card: Card, context: AbilityContext, additionalProperties): void {
         const properties = this.generatePropertiesFromContext(context, additionalProperties) as any;
         super.updateEvent(event, card, context, additionalProperties);
         event.destination = Location.Discard;
-        // TODO: the L5R 'ancestral' keyword behaves exactly like Gar's deployed ability, we can reuse this code for him
+        // TODO GAR SAXON: the L5R 'ancestral' keyword behaves exactly like Gar's deployed ability, we can reuse this code for him
         // event.preResolutionEffect = () => {
         //     event.cardStateWhenLeftPlay = event.card.createSnapshot();
         //     if (event.card.isAncestral() && event.isContingent) {
@@ -161,7 +162,7 @@ export abstract class CardTargetSystem<TProperties extends ICardTargetSystemProp
             //     if (attachment.location === Location.PlayArea) {
             //         let attachmentEvent = context.game.actions
             //             .discardFromPlay()
-            //             .getEvent(attachment, context.game.getFrameworkContext());
+            //             .generateEvent(attachment, context.game.getFrameworkContext());
             //         attachmentEvent.order = event.order - 1;
             //         let previousCondition = attachmentEvent.condition;
             //         attachmentEvent.condition = (attachmentEvent) =>
@@ -176,7 +177,7 @@ export abstract class CardTargetSystem<TProperties extends ICardTargetSystemProp
     }
 
     protected leavesPlayEventHandler(event, additionalProperties = {}): void {
-        if (!event.card.owner.isLegalLocationForCard(event.card, event.destination)) {
+        if (!event.card.owner.isLegalLocationForCardTypes(event.card.types, event.destination)) {
             event.card.game.addMessage(
                 '{0} is not a legal location for {1} and it is discarded',
                 event.destination,

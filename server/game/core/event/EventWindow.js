@@ -1,5 +1,3 @@
-const _ = require('underscore');
-
 const { BaseStepWithPipeline } = require('../gameSteps/BaseStepWithPipeline.js');
 const { TriggeredAbilityWindow } = require('../gameSteps/abilityWindow/TriggeredAbilityWindow');
 const { SimpleStep } = require('../gameSteps/SimpleStep.js');
@@ -12,29 +10,31 @@ class EventWindow extends BaseStepWithPipeline {
 
         this.events = [];
         this.additionalAbilitySteps = [];
-        _.each(events, (event) => {
+        events.forEach((event) => {
             if (!event.cancelled) {
                 this.addEvent(event);
             }
         });
+
+        this.toStringName = `'EventWindow: ${this.events.map((event) => event.name).join(', ')}'`;
 
         this.initialise();
     }
 
     initialise() {
         this.pipeline.initialise([
-            new SimpleStep(this.game, () => this.setCurrentEventWindow()),
-            new SimpleStep(this.game, () => this.checkEventCondition()),
-            // new SimpleStep(this.game, () => this.createContingentEvents()),
+            new SimpleStep(this.game, () => this.setCurrentEventWindow(), 'setCurrentEventWindow'),
+            new SimpleStep(this.game, () => this.checkEventCondition(), 'checkEventCondition'),
+            // new SimpleStep(this.game, () => this.createContingentEvents(), 'createContingentEvents'),
             // new SimpleStep(this.game, () => this.checkKeywordAbilities(AbilityType.KeywordInterrupt)),
-            new SimpleStep(this.game, () => this.checkForOtherEffects()),
-            new SimpleStep(this.game, () => this.preResolutionEffects()),
-            new SimpleStep(this.game, () => this.executeHandler()),
-            // new SimpleStep(this.game, () => this.checkGameState()),
+            new SimpleStep(this.game, () => this.checkForOtherEffects(), 'checkForOtherEffects'),
+            new SimpleStep(this.game, () => this.preResolutionEffects(), 'preResolutionEffects'),
+            new SimpleStep(this.game, () => this.executeHandler(), 'executeHandler'),
+            // new SimpleStep(this.game, () => this.resolveGameState(), 'resolveGameState'),
             // new SimpleStep(this.game, () => this.checkKeywordAbilities(AbilityType.KeywordReaction)),
-            // new SimpleStep(this.game, () => this.checkAdditionalAbilitySteps()),
-            new SimpleStep(this.game, () => this.openWindow(AbilityType.TriggeredAbility)),
-            new SimpleStep(this.game, () => this.resetCurrentEventWindow())
+            // new SimpleStep(this.game, () => this.checkAdditionalAbilitySteps(), 'checkAdditionalAbilitySteps'),
+            new SimpleStep(this.game, () => this.openWindow(AbilityType.TriggeredAbility), 'open TriggeredAbility window'),
+            new SimpleStep(this.game, () => this.resetCurrentEventWindow(), 'resetCurrentEventWindow')
         ]);
     }
 
@@ -45,7 +45,7 @@ class EventWindow extends BaseStepWithPipeline {
     }
 
     removeEvent(event) {
-        this.events = _.reject(this.events, (e) => e === event);
+        this.events = this.events.filter((e) => e !== event);
         return event;
     }
 
@@ -63,7 +63,7 @@ class EventWindow extends BaseStepWithPipeline {
     }
 
     openWindow(abilityType) {
-        if (_.isEmpty(this.events)) {
+        if (this.events.length === 0) {
             return;
         }
 
@@ -78,7 +78,7 @@ class EventWindow extends BaseStepWithPipeline {
     // // This is primarily for LeavesPlayEvents
     // createContingentEvents() {
     //     let contingentEvents = [];
-    //     _.each(this.events, (event) => {
+    //     this.events.forEach((event) => {
     //         contingentEvents = contingentEvents.concat(event.createContingentEvents());
     //     });
     //     if (contingentEvents.length > 0) {
@@ -90,17 +90,17 @@ class EventWindow extends BaseStepWithPipeline {
 
     // This catches any persistent/delayed effect cancels
     checkForOtherEffects() {
-        _.each(this.events, (event) => this.game.emit(event.name + ':' + AbilityType.OtherEffects, event));
+        this.events.forEach((event) => this.game.emit(event.name + ':' + AbilityType.OtherEffects, event));
     }
 
     preResolutionEffects() {
-        _.each(this.events, (event) => event.preResolutionEffect());
+        this.events.forEach((event) => event.preResolutionEffect());
     }
 
     executeHandler() {
-        this.eventsToExecute = _.sortBy(this.events, 'order');
+        this.eventsToExecute = this.events.sort((event) => event.order);
 
-        _.each(this.eventsToExecute, (event) => {
+        this.eventsToExecute.forEach((event) => {
             // need to checkCondition here to ensure the event won't fizzle due to another event's resolution (e.g. double honoring an ordinary character with YR etc.)
             event.checkCondition();
             if (!event.cancelled) {
@@ -110,9 +110,9 @@ class EventWindow extends BaseStepWithPipeline {
         });
     }
 
-    // checkGameState() {
+    // resolveGameState() {
     //     this.eventsToExecute = this.eventsToExecute.filter((event) => !event.cancelled);
-    //     this.game.checkGameState(_.any(this.eventsToExecute, (event) => event.handler), this.eventsToExecute);
+    //     this.game.resolveGameState(_.any(this.eventsToExecute, (event) => event.handler), this.eventsToExecute);
     // }
 
     // checkKeywordAbilities(abilityType) {
@@ -139,6 +139,11 @@ class EventWindow extends BaseStepWithPipeline {
         } else {
             this.game.currentEventWindow = null;
         }
+    }
+
+    /** @override */
+    toString() {
+        return this.toStringName;
     }
 }
 

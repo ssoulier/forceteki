@@ -1,7 +1,7 @@
 import { AbilityContext } from '../../ability/AbilityContext';
 import Player from '../../Player';
-import { EffectValue } from './EffectValue';
-import { restrictionDsl } from '../../../effects/RestrictionDsl';
+import { OngoingEffectValueWrapper } from './OngoingEffectValueWrapper';
+import { restrictionDsl } from '../../../ongoingEffects/RestrictionDsl';
 import type Card from '../../card/Card';
 
 const leavePlayTypes = new Set(['discardFromPlay', 'returnToHand', 'returnToDeck', 'removeFromGame']);
@@ -15,13 +15,13 @@ export interface RestrictionProperties {
     params?: any;
 }
 
-export class Restriction extends EffectValue<Restriction> {
-    type: string;
-    restrictedActionCondition?: (context: AbilityContext) => boolean;
-    applyingPlayer?: Player;
-    params?: any;
+export class Restriction extends OngoingEffectValueWrapper<Restriction> {
+    public readonly type: string;
+    public restrictedActionCondition?: (context: AbilityContext) => boolean;
+    public applyingPlayer?: Player;
+    public params?: any;
 
-    constructor(properties: string | RestrictionProperties) {
+    public constructor(properties: string | RestrictionProperties) {
         super(null);
         if (typeof properties === 'string') {
             this.type = properties;
@@ -33,11 +33,11 @@ export class Restriction extends EffectValue<Restriction> {
         }
     }
 
-    override getValue() {
+    public override getValue() {
         return this;
     }
 
-    isMatch(type, context, card) {
+    public isMatch(type, context, card) {
         if (this.type === 'leavePlay') {
             return leavePlayTypes.has(type) && this.checkCondition(context, card);
         }
@@ -45,7 +45,7 @@ export class Restriction extends EffectValue<Restriction> {
         return (!this.type || this.type === type) && this.checkCondition(context, card);
     }
 
-    checkCondition(context, card) {
+    public checkCondition(context, card) {
         if (Array.isArray(this.restrictedActionCondition)) {
             const vals = this.restrictedActionCondition.map((a) => this.checkRestriction(a, context, card));
             return vals.every((a) => a);
@@ -54,7 +54,7 @@ export class Restriction extends EffectValue<Restriction> {
         return this.checkRestriction(this.restrictedActionCondition, context, card);
     }
 
-    checkRestriction(restriction, context, card) {
+    public checkRestriction(restriction, context, card) {
         if (!restriction) {
             return true;
         } else if (!context) {

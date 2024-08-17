@@ -1,6 +1,6 @@
-import AbilityDsl from '../../AbilityDsl.js';
-import Effects from '../../effects/EffectLibrary.js';
-import EffectSource from '../effect/EffectSource.js';
+import AbilityHelper from '../../AbilityHelper.js';
+import Effects from '../../ongoingEffects/EffectLibrary.js';
+import OngoingEffectSource from '../ongoingEffect/OngoingEffectSource.js';
 import CardAbility from '../ability/CardAbility.js';
 import Game from '../Game.js';
 import Contract from '../utils/Contract';
@@ -18,28 +18,29 @@ import {
     Aspect,
     WildcardLocation,
     StatType,
-    Trait
+    Trait,
+    AbilityRestriction,
+    LocationFilter
 } from '../Constants.js';
 import { isArena, cardLocationMatches, checkConvertToEnum } from '../utils/EnumHelpers.js';
 import {
     IActionProps,
-    IAttachmentConditionProps,
+    // IAttachmentConditionProps,
     IConstantAbilityProps,
-    ITriggeredAbilityProps,
-    ITriggeredAbilityWhenProps
+    ITriggeredAbilityProps
 } from '../../Interfaces.js';
 // import { PlayAttachmentAction } from './PlayAttachmentAction.js';
 // import { StatusToken } from './StatusToken';
 import Player from '../Player.js';
-import StatsModifierWrapper from '../effect/effectImpl/StatsModifierWrapper.js';
-import type { ICardEffect } from '../effect/ICardEffect.js';
+import StatsModifierWrapper from '../ongoingEffect/effectImpl/StatsModifierWrapper.js';
+import type { IOngoingCardEffect } from '../ongoingEffect/IOngoingCardEffect.js';
 import { PlayUnitAction } from '../../actions/PlayUnitAction.js';
-import { TriggerAttackAction } from '../../actions/TriggerAttackAction.js';
+import { InitiateAttackAction } from '../../actions/InitiateAttackAction.js';
 import TriggeredAbility from '../ability/TriggeredAbility.js';
-import { IConstantAbility } from '../effect/IConstantAbility.js';
+import { IConstantAbility } from '../ongoingEffect/IConstantAbility.js';
 import PlayerAction from '../ability/PlayerAction.js';
 import PlayerOrCardAbility from '../ability/PlayerOrCardAbility.js';
-import StatsModifier from '../effect/effectImpl/StatsModifier.js';
+import StatsModifier from '../ongoingEffect/effectImpl/StatsModifier.js';
 
 // TODO: convert enums to unions
 type PrintedKeyword =
@@ -74,7 +75,7 @@ const ValidKeywords = new Set<PrintedKeyword>([
 ]);
 
 interface ICardAbilities {
-    // TODO: maybe rethink some of the inheritance tree (specifically for TriggerAttackAction) so that this can be more specific
+    // TODO: maybe rethink some of the inheritance tree (specifically for InitiateAttackAction) so that this can be more specific
     action: any[];
     triggered: TriggeredAbility[];
     constant: IConstantAbility[];
@@ -82,60 +83,111 @@ interface ICardAbilities {
 }
 
 // TODO: switch to using mixins for the different card types
-class Card extends EffectSource {
-    controller: Player;
-    override game: Game;
+class Card extends OngoingEffectSource {
+    public controller: Player;
+    public override game: Game;
 
-    static implemented = false;
+    public static implemented = false;
 
-    // TODO: readonly pass on class properties throughout the repo
-    override readonly id: string;
-    readonly printedTitle: string;
-    readonly printedSubtitle: string;
-    readonly internalName: string;
-    readonly defaultArena: Location | null;
-    readonly unique: boolean;
-    private readonly typeField: CardType;
+    public override readonly id: string;
+    public readonly printedTitle: string;
+    public readonly printedSubtitle: string;
+    public readonly internalName: string;
+    public readonly defaultArena: Location | null;
+    public readonly unique: boolean;
+    public readonly printedTypes: Set<CardType>;
 
-    menu = [
+    public menu = [
         { command: 'exhaust', text: 'Exhaust/Ready' },
         { command: 'control', text: 'Give control' }
     ];
 
-    tokens: object = {};
     // menu: { command: string; text: string }[] = [];
 
-    showPopup = false;
-    popupMenuText = '';
-    abilities: ICardAbilities = { action: [], triggered: [], constant: [], playCardAction: [] };
-    traits: string[];
-    printedFaction: string;
-    location: Location;
+    private showPopup = false;
+    private popupMenuText = '';
+    public abilities: ICardAbilities = { action: [], triggered: [], constant: [], playCardAction: [] };
+    protected traits: string[];
+    public location: Location;
 
-    readonly isBase: boolean = false;
-    readonly isLeader: boolean = false;
+    public readonly printedHp: number | null;
+    public readonly printedPower: number | null;
+    public readonly printedCost: number | null;
+    public readonly aspects: Aspect[] = [];
 
-    upgrades = [] as Card[];
-    childCards = [] as Card[];
-    // statusTokens = [] as StatusToken[];
-    allowedAttachmentTraits = [] as string[];
-    printedKeywords: string[] = [];
-    aspects: Aspect[] = [];
+    protected upgrades = [] as Card[];
+    protected childCards = [] as Card[];
+    protected allowedAttachmentTraits = [] as string[];
+    protected printedKeywords: string[] = [];
 
-    defaultController: Player;
-    parent: Card | null;
-    printedHp: number | null;
-    printedPower: number | null;
-    printedCost: number | null;
-    exhausted: boolean | null;
-    damage: number | null;
-    hiddenForController: boolean;
-    hiddenForOpponent: boolean;
-    playedThisTurn: boolean;
-    facedown: boolean;
-    resourced: boolean;
+    // TODO: readonly getters for most of these
+    protected defaultController: Player;
+    public parent: Card | null;
+    public exhausted: boolean | null;
+    public damage: number | null;
+    public hiddenForController: boolean;
+    public hiddenForOpponent: boolean;
+    public playedThisTurn: boolean;
+    public facedown: boolean;
+    public resourced: boolean;
 
-    constructor(
+    public get title(): string {
+        return this.printedTitle;
+    }
+
+    public get types(): Set<CardType> {
+        return this.printedTypes;
+    }
+
+    /**
+     * The union of the card's "Action Abilities" (ie abilities that enable an action, SWU 2.1) and
+     * any other general card actions such as playing a card
+     */
+    public get actions(): any[] {
+        return this.getActions();
+    }
+
+    /**
+     * SWU 6.1: Triggered abilities have bold text indicating their triggering condition, starting with the word
+     * “When” or “On”, followed by a colon and an effect. Examples of triggered abilities are “When Played,”
+     * “When Defeated,” and “On Attack” abilities
+     */
+    public get triggeredAbilities(): TriggeredAbility[] {
+        return this.getTriggeredAbilities();
+    }
+
+    /**
+     * "Constant abilities" are any non-triggered passive ongoing abilities (SWU 3.1)
+     */
+    public get constantAbilities(): IConstantAbility[] {
+        return this.getConstantAbilities();
+    }
+
+    public get hp(): number | null {
+        return this.printedHp == null ? null : this.getModifiedStatValue(StatType.Hp);
+    }
+
+    public get baseHp(): number | null {
+        return this.printedHp;
+    }
+
+    public get power(): number | null {
+        return this.printedPower == null ? null : this.getModifiedStatValue(StatType.Power);
+    }
+
+    public get basePower(): number | null {
+        return this.printedPower;
+    }
+
+    public get cost() {
+        return this.printedCost;
+    }
+
+    public get showStats() {
+        return isArena(this.location) && this.isUnit();
+    }
+
+    public constructor(
         public owner: Player,
         public cardData: any
     ) {
@@ -147,17 +199,16 @@ class Card extends EffectSource {
 
         this.id = cardData.id;
         this.unique = cardData.unique;
-        this.typeField = cardData.type;
 
         this.printedTitle = cardData.title;
         this.printedSubtitle = cardData.subtitle;
         this.internalName = cardData.internalName;
-        this.printedType = checkConvertToEnum([cardData.type], CardType)[0]; // TODO: does this work for leader consistently, since it has two types?
+        this.printedTypes = new Set(checkConvertToEnum(cardData.types, CardType));
         this.traits = checkConvertToEnum(cardData.traits, Trait);
         this.aspects = checkConvertToEnum(cardData.aspects, Aspect);
         this.printedKeywords = cardData.keywords; // TODO: enum for these
 
-        this.setupCardAbilities(AbilityDsl);
+        this.setupCardAbilities(AbilityHelper);
         this.setupPlayAbilities();
         // this.parseKeywords(cardData.text ? cardData.text.replace(/<[^>]*>/g, '').toLowerCase() : '');
         // this.applyAttachmentBonus();
@@ -194,7 +245,7 @@ class Card extends EffectSource {
         //     this.abilities.triggered.push(new CourtesyAbility(this.game, this));
         //     this.abilities.triggered.push(new SincerityAbility(this.game, this));
         // }
-        // if (cardData.type === CardType.Event && this.hasEphemeral()) {
+        // if (cardData.isEvent() && this.hasEphemeral()) {
         //     this.eventRegistrarForEphemeral = new EventRegistrar(this.game, this);
         //     this.eventRegistrarForEphemeral.register([{ [EventName.OnCardPlayed]: 'handleEphemeral' }]);
         // }
@@ -207,7 +258,7 @@ class Card extends EffectSource {
         Contract.assertNotNullLike(cardData);
         Contract.assertNotNullLike(cardData.id);
         Contract.assertNotNullLike(cardData.title);
-        Contract.assertNotNullLike(cardData.type);
+        Contract.assertNotNullLike(cardData.types);
         Contract.assertNotNullLike(cardData.traits);
         Contract.assertNotNullLike(cardData.aspects);
         Contract.assertNotNullLike(cardData.keywords);
@@ -242,26 +293,66 @@ class Card extends EffectSource {
     /**
      * Equivalent to {@link Card.title}
      */
-    override get name(): string {
+    public override get name(): string {
         return this.title;
     }
 
-    get title(): string {
-        return this.printedTitle;
+    public isEvent(): boolean {
+        return this.hasSomeType(CardType.Event);
     }
 
-    // UP NEXT: type needs to be an array, sadly
-    override get type(): CardType {
-        return this.typeField;
+    public isUnit(): boolean {
+        return this.hasSomeType(CardType.Unit);
     }
 
-    // UP NEXT: don't always return play actions
-    /**
-     * The union of the card's "Action Abilities" (ie abilities that enable an action, SWU 2.1) and
-     * any other general card actions such as playing a card
-     */
-    get actions(): any[] {
-        return this.getActions();
+    public isUpgrade(): boolean {
+        return this.hasSomeType(CardType.Upgrade);
+    }
+
+    public isBase(): boolean {
+        return this.hasSomeType(CardType.Base);
+    }
+
+    public isLeader(): boolean {
+        return this.hasSomeType(CardType.Leader);
+    }
+
+    public isToken(): boolean {
+        return this.hasSomeType(CardType.Token);
+    }
+
+    public hasEveryType(types: Set<CardType> | CardType | CardType[]): boolean {
+        let typesToCheck: Set<CardType> | CardType[];
+
+        if (!(types instanceof Set) && !(types instanceof Array)) {
+            typesToCheck = [types];
+        } else {
+            typesToCheck = types;
+        }
+
+        for (const type of typesToCheck) {
+            if (!this.types.has(type)) {
+                return false;
+            }
+        }
+        return false;
+    }
+
+    public hasSomeType(types: Set<CardType> | CardType | CardType[]): boolean {
+        let typesToCheck: Set<CardType> | CardType[];
+
+        if (!(types instanceof Set) && !(types instanceof Array)) {
+            typesToCheck = [types];
+        } else {
+            typesToCheck = types;
+        }
+
+        for (const type of typesToCheck) {
+            if (this.types.has(type)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private getActions(location = this.location): any[] {
@@ -272,13 +363,13 @@ class Card extends EffectSource {
         //     allAbilities = allAbilities.filter((a) => a.isKeywordAbility());
         // }
 
-        if (this.type === CardType.Unit) {
-            allAbilities.push(new TriggerAttackAction(this));
+        if (this.isUnit()) {
+            allAbilities.push(new InitiateAttackAction(this));
         }
 
-        // TODO EVENT: this block prevents the PlayCardAction from being generated for event cards
+        // TODO EVENT: this block prevents any PlayCardAction from being generated for event cards
         // if card is already in play or is an event, return the default actions
-        if (isArena(location) || this.type === CardType.Event) {
+        if (isArena(location) || this.isEvent()) {
             return allAbilities;
         }
 
@@ -288,20 +379,8 @@ class Card extends EffectSource {
         return allAbilities.concat(this.getPlayCardActions());
     }
 
-    /**
-     * SWU 6.1: Triggered abilities have bold text indicating their triggering condition, starting with the word
-     * “When” or “On”, followed by a colon and an effect. Examples of triggered abilities are “When Played,”
-     * “When Defeated,” and “On Attack” abilities
-     */
-    get triggeredAbilities(): TriggeredAbility[] {
-        return this.getTriggeredAbilities();
-    }
 
     private getTriggeredAbilities(): TriggeredAbility[] {
-        const TriggeredAbilityTypes = [
-            AbilityType.ForcedReaction,
-            AbilityType.Reaction,
-        ];
         const triggeredAbilities = this.abilities.triggered;
 
         // const lostAllNonKeywordsAbilities = this.anyEffect(EffectName.LoseAllNonKeywordAbilities);
@@ -310,13 +389,6 @@ class Card extends EffectSource {
         // }
 
         return triggeredAbilities;
-    }
-
-    /**
-     * "Constant abilities" are any non-triggered passive ongoing abilities (SWU 3.1)
-     */
-    get constantAbilities(): IConstantAbility[] {
-        return this.getConstantAbilities();
     }
 
     private getConstantAbilities(): any[] {
@@ -333,14 +405,21 @@ class Card extends EffectSource {
     // TODO: make this abstract eventually
     /**
      * Create card abilities by calling subsequent methods with appropriate properties
-     * @param {Object} ability - AbilityDsl object containing limits, costs, effects, and game actions
+     * @param {Object} ability - AbilityHelper object containing limits, costs, effects, and game actions
      */
     // eslint-disable-next-line @typescript-eslint/no-empty-function
     protected setupCardAbilities(ability) {
     }
 
     protected setupPlayAbilities() {
-        if (this.type === CardType.Unit) {
+        // TODO UPGRADE: add play upgrade here
+
+        // TODO EVENT: this block *also* prevents the PlayCardAction from being generated for event cards
+        if (this.isEvent()) {
+            return;
+        }
+
+        if (this.isUnit()) {
             this.abilities.playCardAction.push(new PlayUnitAction(this));
         }
     }
@@ -350,6 +429,7 @@ class Card extends EffectSource {
     }
 
     private createActionAbility(properties: IActionProps): CardActionAbility {
+        properties.cardName = this.title;
         return new CardActionAbility(this.game, this, properties);
     }
 
@@ -363,6 +443,7 @@ class Card extends EffectSource {
     }
 
     private createTriggeredAbility(properties: ITriggeredAbilityProps): TriggeredAbility {
+        properties.cardName = this.title;
         return new TriggeredAbility(this.game, this, properties);
     }
 
@@ -371,22 +452,27 @@ class Card extends EffectSource {
      * is both in play and not blank.
      */
     protected constantAbility(properties: IConstantAbilityProps<this>): void {
-        const allowedLocations = [
+        const allowedLocationFilters = [
             WildcardLocation.Any,
             Location.Discard,
             WildcardLocation.AnyArena,
             Location.Leader,
             Location.Base,
         ];
-        const defaultLocationForType = {
-            leader: Location.Leader,
-            base: Location.Base,
-        };
 
-        const locationFilter = properties.locationFilter || defaultLocationForType[this.getType()] || WildcardLocation.AnyArena;
-        if (!allowedLocations.includes(locationFilter)) {
-            throw new Error(`'${locationFilter}' is not a supported effect location.`);
+        const locationFilter = properties.locationFilter || WildcardLocation.AnyArena;
+
+        let notAllowedLocations: LocationFilter[];
+        if (Array.isArray(locationFilter)) {
+            notAllowedLocations = allowedLocationFilters.filter((location) => locationFilter.includes(location));
+        } else {
+            notAllowedLocations = allowedLocationFilters.includes(locationFilter) ? [] : [locationFilter];
         }
+
+        if (notAllowedLocations.length > 0) {
+            throw new Error(`Illegal effect location(s) specified: '${notAllowedLocations.join(', ')}'`);
+        }
+        properties.cardName = this.title;
         this.abilities.constant.push({ duration: Duration.Persistent, locationFilter, ...properties });
     }
 
@@ -430,30 +516,31 @@ class Card extends EffectSource {
     //     }
     // }
 
-    hasKeyword(keyword: string): boolean {
+    public hasKeyword(keyword: string): boolean {
         const targetKeyword = keyword.toLowerCase();
 
-        const addKeywordEffects = this.getEffects(EffectName.AddKeyword).filter(
+        const addKeywordEffects = this.getEffectValues(EffectName.AddKeyword).filter(
             (effectValue: string) => effectValue === targetKeyword
         );
-        const loseKeywordEffects = this.getEffects(EffectName.LoseKeyword).filter(
+        const loseKeywordEffects = this.getEffectValues(EffectName.LoseKeyword).filter(
             (effectValue: string) => effectValue === targetKeyword
         );
 
         return addKeywordEffects.length > loseKeywordEffects.length;
     }
 
-    hasPrintedKeyword(keyword: PrintedKeyword) {
+    public hasPrintedKeyword(keyword: PrintedKeyword) {
         return this.printedKeywords.includes(keyword);
     }
 
-    hasTrait(trait: string): boolean {
+    public hasTrait(trait: string): boolean {
         return this.hasSomeTrait(trait);
     }
 
-    hasEveryTrait(traits: Set<string>): boolean;
-    hasEveryTrait(...traits: string[]): boolean;
-    hasEveryTrait(traitSetOrFirstTrait: Set<string> | string, ...otherTraits: string[]): boolean {
+    // TODO: fix the below so they use the same pattern as has*Trait above
+    public hasEveryTrait(traits: Set<string>): boolean;
+    public hasEveryTrait(...traits: string[]): boolean;
+    public hasEveryTrait(traitSetOrFirstTrait: Set<string> | string, ...otherTraits: string[]): boolean {
         const traitsToCheck =
             traitSetOrFirstTrait instanceof Set
                 ? traitSetOrFirstTrait
@@ -468,9 +555,9 @@ class Card extends EffectSource {
         return true;
     }
 
-    hasSomeTrait(traits: Set<string>): boolean;
-    hasSomeTrait(...traits: string[]): boolean;
-    hasSomeTrait(traitSetOrFirstTrait: Set<string> | string, ...otherTraits: string[]): boolean {
+    public hasSomeTrait(traits: Set<string>): boolean;
+    public hasSomeTrait(...traits: string[]): boolean;
+    public hasSomeTrait(traitSetOrFirstTrait: Set<string> | string, ...otherTraits: string[]): boolean {
         const traitsToCheck =
             traitSetOrFirstTrait instanceof Set
                 ? traitSetOrFirstTrait
@@ -485,35 +572,26 @@ class Card extends EffectSource {
         return false;
     }
 
-    getTraits(): Set<string> {
+    public getTraits(): Set<string> {
         return this.getTraitSet();
     }
 
-    getTraitSet(): Set<string> {
+    public getTraitSet(): Set<string> {
         const set = new Set(
-            this.getEffects(EffectName.Blank).some((blankTraits: boolean) => blankTraits)
+            this.getEffectValues(EffectName.Blank).some((blankTraits: boolean) => blankTraits)
                 ? []
                 : this.traits
         );
 
-        for (const gainedTrait of this.getEffects(EffectName.AddTrait)) {
+        for (const gainedTrait of this.getEffectValues(EffectName.AddTrait)) {
             set.add(gainedTrait);
         }
-        for (const lostTrait of this.getEffects(EffectName.LoseTrait)) {
+        for (const lostTrait of this.getEffectValues(EffectName.LoseTrait)) {
             set.delete(lostTrait);
         }
 
         return set;
     }
-
-    // isFaction(faction: Faction): boolean {
-    //     const copyEffect = this.mostRecentEffect(EffectName.CopyCharacter);
-    //     const cardFaction = copyEffect ? copyEffect.printedFaction : this.printedFaction;
-    //     if (faction === 'neutral') {
-    //         return cardFaction === faction && !this.anyEffect(EffectName.AddFaction);
-    //     }
-    //     return cardFaction === faction || this.getEffects(EffectName.AddFaction).includes(faction);
-    // }
 
     // isInPlay(): boolean {
     //     if (this.isFacedown()) {
@@ -551,7 +629,7 @@ class Card extends EffectSource {
             this.resetLimits();
         }
         for (const triggeredAbility of this.triggeredAbilities) {
-            if (this.type === CardType.Event) {
+            if (this.isEvent()) {
                 // TODO EVENT: this is block is here because the only reaction to register on an event was the bluff window 'reaction', we have real ones now
                 if (
                     to === Location.Deck ||
@@ -599,7 +677,7 @@ class Card extends EffectSource {
         }
     }
 
-    updateConstantAbilityContexts() {
+    protected updateConstantAbilityContexts() {
         for (const constantAbility of this.constantAbilities) {
             if (constantAbility.registeredEffects) {
                 for (const effect of constantAbility.registeredEffects) {
@@ -609,7 +687,7 @@ class Card extends EffectSource {
         }
     }
 
-    moveTo(targetLocation: Location) {
+    public moveTo(targetLocation: Location) {
         const originalLocation = this.location;
 
         if (originalLocation === targetLocation) {
@@ -630,20 +708,20 @@ class Card extends EffectSource {
         }
     }
 
-    canTriggerAbilities(context: AbilityContext, ignoredRequirements = []): boolean {
+    public canTriggerAbilities(context: AbilityContext, ignoredRequirements = []): boolean {
         return (
             !this.facedown &&
             (ignoredRequirements.includes('triggeringRestrictions') ||
-                this.checkRestrictions('triggerAbilities', context))
+                !this.hasRestriction(AbilityRestriction.TriggerAbilities, context))
         );
     }
 
-    canInitiateKeywords(context: AbilityContext): boolean {
-        return !this.facedown && this.checkRestrictions('initiateKeywords', context);
+    public canInitiateKeywords(context: AbilityContext): boolean {
+        return !this.facedown && !this.hasRestriction(AbilityRestriction.InitiateKeywords, context);
     }
 
-    getModifiedAbilityLimitMax(player: Player, ability: CardAbility, max: number): number {
-        const effects = this.getRawEffects().filter((effect) => effect.type === EffectName.IncreaseLimitOnAbilities);
+    public getModifiedAbilityLimitMax(player: Player, ability: CardAbility, max: number): number {
+        const effects = this.getEffects().filter((effect) => effect.type === EffectName.IncreaseLimitOnAbilities);
         let total = max;
         effects.forEach((effect) => {
             const value = effect.getValue(this);
@@ -680,15 +758,15 @@ class Card extends EffectSource {
     //     return menu;
     // }
 
-    isBlank(): boolean {
+    public isBlank(): boolean {
         return this.anyEffect(EffectName.Blank);
     }
 
-    override checkRestrictions(actionType, context: AbilityContext): boolean {
+    public override hasRestriction(actionType, context: AbilityContext): boolean {
         const player = (context && context.player) || this.controller;
         return (
-            super.checkRestrictions(actionType, context) &&
-            player.checkRestrictions(actionType, context)
+            super.hasRestriction(actionType, context) ||
+            player.hasRestriction(actionType, context)
         );
     }
 
@@ -696,7 +774,7 @@ class Card extends EffectSource {
     //     return this.triggeredAbilities.slice();
     // }
 
-    readiesDuringReadyPhase(): boolean {
+    public readiesDuringReadyPhase(): boolean {
         return !this.anyEffect(EffectName.DoesNotReady);
     }
 
@@ -705,7 +783,7 @@ class Card extends EffectSource {
     // }
 
     // TODO: would something like this be helpful for swu?
-    parseKeywords(text: string) {
+    public parseKeywords(text: string) {
         // const potentialKeywords = [];
         // for (const line of text.split('\n')) {
         //     for (const k of line.slice(0, -1).split('.')) {
@@ -730,12 +808,12 @@ class Card extends EffectSource {
 
         // TODO: uncomment
         // for (const keyword of this.printedKeywords) {
-        //     this.persistentEffect({ effect: AbilityDsl.effects.addKeyword(keyword) });
+        //     this.persistentEffect({ effect: AbilityHelper.effects.addKeyword(keyword) });
         // }
     }
 
     // isAttachmentBonusModifierSwitchActive() {
-    //     const switches = this.getEffects(EffectName.SwitchAttachmentSkillModifiers).filter(Boolean);
+    //     const switches = this.getEffectValues(EffectName.SwitchAttachmentSkillModifiers).filter(Boolean);
     //     // each pair of switches cancels each other. Need an odd number of switches to be active
     //     return switches.length % 2 === 1;
     // }
@@ -747,7 +825,7 @@ class Card extends EffectSource {
     //         this.persistentEffect({
     //             match: (card) => card === this.parent,
     //             targetController: RelativePlayer.Any,
-    //             effect: AbilityDsl.effects.attachmentMilitarySkillModifier(() =>
+    //             effect: AbilityHelper.effects.attachmentMilitarySkillModifier(() =>
     //                 this.isAttachmentBonusModifierSwitchActive() ? politicalBonus : militaryBonus
     //             )
     //         });
@@ -756,7 +834,7 @@ class Card extends EffectSource {
     //         this.persistentEffect({
     //             match: (card) => card === this.parent,
     //             targetController: RelativePlayer.Any,
-    //             effect: AbilityDsl.effects.attachmentPoliticalSkillModifier(() =>
+    //             effect: AbilityHelper.effects.attachmentPoliticalSkillModifier(() =>
     //                 this.isAttachmentBonusModifierSwitchActive() ? militaryBonus : politicalBonus
     //             )
     //         });
@@ -768,7 +846,7 @@ class Card extends EffectSource {
     //     const illegalAttachments = new Set(
     //         this.upgrades.filter((attachment) => !this.allowAttachment(attachment) || !attachment.canAttach(this))
     //     );
-    //     for (const effectCard of this.getEffects(EffectName.CannotHaveOtherRestrictedAttachments)) {
+    //     for (const effectCard of this.getEffectValues(EffectName.CannotHaveOtherRestrictedAttachments)) {
     //         for (const card of this.upgrades) {
     //             if (card.isRestricted() && card !== effectCard) {
     //                 illegalAttachments.add(card);
@@ -778,7 +856,7 @@ class Card extends EffectSource {
 
     //     const attachmentLimits = this.upgrades.filter((card) => card.anyEffect(EffectName.AttachmentLimit));
     //     for (const card of attachmentLimits) {
-    //         let limit = Math.max(...card.getEffects(EffectName.AttachmentLimit));
+    //         let limit = Math.max(...card.getEffectValues(EffectName.AttachmentLimit));
     //         const matchingAttachments = this.upgrades.filter((attachment) => attachment.id === card.id);
     //         for (const card of matchingAttachments.slice(0, -limit)) {
     //             illegalAttachments.add(card);
@@ -802,7 +880,7 @@ class Card extends EffectSource {
     //     }
 
     //     for (const object of this.upgrades.reduce(
-    //         (array, card) => array.concat(card.getEffects(EffectName.AttachmentRestrictTraitAmount)),
+    //         (array, card) => array.concat(card.getEffectValues(EffectName.AttachmentRestrictTraitAmount)),
     //         []
     //     )) {
     //         for (const trait of Object.keys(object)) {
@@ -861,7 +939,7 @@ class Card extends EffectSource {
      * Checks whether an attachment can be played on a given card.  Intended to be
      * used by cards inheriting this class
      */
-    canPlayOn(card) {
+    public canPlayOn(card) {
         return true;
     }
 
@@ -869,7 +947,7 @@ class Card extends EffectSource {
      * Checks 'no attachment' restrictions for this card when attempting to
      * attach the passed attachment card.
      */
-    allowAttachment(attachment) {
+    public allowAttachment(attachment) {
         if (this.allowedAttachmentTraits.some((trait) => attachment.hasTrait(trait))) {
             return true;
         }
@@ -877,98 +955,9 @@ class Card extends EffectSource {
         return this.isBlank() || this.allowedAttachmentTraits.length === 0;
     }
 
-    // /**
-    //  * Applies an effect with the specified properties while the current card is
-    //  * attached to another card. By default the effect will target the parent
-    //  * card, but you can provide a match function to narrow down whether the
-    //  * effect is applied (for cases where the effect only applies to specific
-    //  * characters).
-    //  */
-    // whileAttached(properties: Pick<PersistentEffectProps<this>, 'condition' | 'match' | 'effect'>) {
-    //     this.persistentEffect({
-    //         condition: properties.condition || (() => true),
-    //         match: (card, context) => card === this.parent && (!properties.match || properties.match(card, context)),
-    //         targetController: RelativePlayer.Any,
-    //         effect: properties.effect
-    //     });
-    // }
-
-    // /**
-    //  * Checks whether the passed card meets the attachment restrictions (e.g.
-    //  * Opponent cards only, specific factions, etc) for this card.
-    //  */
-    // canAttach(parent?: BaseCard, properties = { ignoreType: false, controller: this.controller }) {
-    //     if (!(parent instanceof BaseCard)) {
-    //         return false;
-    //     }
-
-    //     if (
-    //         parent.getType() !== CardType.Character ||
-    //         (!properties.ignoreType && this.getType() !== CardType.Attachment)
-    //     ) {
-    //         return false;
-    //     }
-
-    //     const attachmentController = properties.controller ?? this.controller;
-    //     for (const effect of this.getRawEffects() as CardEffect[]) {
-    //         switch (effect.type) {
-    //             case EffectName.AttachmentMyControlOnly: {
-    //                 if (attachmentController !== parent.controller) {
-    //                     return false;
-    //                 }
-    //                 break;
-    //             }
-    //             case EffectName.AttachmentOpponentControlOnly: {
-    //                 if (attachmentController === parent.controller) {
-    //                     return false;
-    //                 }
-    //                 break;
-    //             }
-    //             case EffectName.AttachmentUniqueRestriction: {
-    //                 if (!parent.isUnique()) {
-    //                     return false;
-    //                 }
-    //                 break;
-    //             }
-    //             case EffectName.AttachmentFactionRestriction: {
-    //                 const factions = effect.getValue<Faction[]>(this as any);
-    //                 if (!factions.some((faction) => parent.isFaction(faction))) {
-    //                     return false;
-    //                 }
-    //                 break;
-    //             }
-    //             case EffectName.AttachmentTraitRestriction: {
-    //                 const traits = effect.getValue<string[]>(this as any);
-    //                 if (!traits.some((trait) => parent.hasTrait(trait))) {
-    //                     return false;
-    //                 }
-    //                 break;
-    //             }
-    //             case EffectName.AttachmentCardCondition: {
-    //                 const cardCondition = effect.getValue<(card: BaseCard) => boolean>(this as any);
-    //                 if (!cardCondition(parent)) {
-    //                     return false;
-    //                 }
-    //                 break;
-    //             }
-    //         }
-    //     }
-    //     return true;
-    // }
-
-    getPlayCardActions() {
-        // TODO EVENT: this block *also* prevents the PlayCardAction from being generated for event cards
-        // events are a special case
-        if (this.type === CardType.Event) {
-            return this.getActions();
-        }
+    protected getPlayCardActions() {
         const actions = this.abilities.playCardAction.slice();
-        // if (this.type === CardType.Unit) {
-        //     actions.push(new PlayUnitAction(this));
-        // }
-        // else if (this.type === CardType.Upgrade) {
-        //     actions.push(new PlayAttachmentAction(this));
-        // }
+
         return actions;
     }
 
@@ -977,16 +966,16 @@ class Card extends EffectSource {
      * game effects to respond to.
      * @param {Card} attachment
      */
-    removeAttachment(attachment) {
+    public removeAttachment(attachment) {
         this.upgrades = this.upgrades.filter((card) => card.uuid !== attachment.uuid);
     }
 
-    addChildCard(card, location) {
+    protected addChildCard(card, location) {
         this.childCards.push(card);
         this.controller.moveCard(card, location);
     }
 
-    removeChildCard(card, location) {
+    protected removeChildCard(card, location) {
         if (!card) {
             return;
         }
@@ -994,23 +983,6 @@ class Card extends EffectSource {
         this.childCards = this.childCards.filter((a) => a !== card);
         this.controller.moveCard(card, location);
     }
-
-    // addStatusToken(tokenType) {
-    //     tokenType = tokenType.grantedStatus || tokenType;
-    //     if (!this.statusTokens.find((a) => a.grantedStatus === tokenType)) {
-    //         if (tokenType === CharacterStatus.Honored && this.isDishonored) {
-    //             this.removeStatusToken(CharacterStatus.Dishonored);
-    //         } else if (tokenType === CharacterStatus.Dishonored && this.isHonored) {
-    //             this.removeStatusToken(CharacterStatus.Honored);
-    //         } else {
-    //             const token = StatusToken.create(this.game, this, tokenType);
-    //             if (token) {
-    //                 token.setCard(this);
-    //                 this.statusTokens.push(token);
-    //             }
-    //         }
-    //     }
-    // }
 
     // TODO: is this correct handling of hidden cards? not sure how this integrates with the client
     public override getShortSummaryForControls(activePlayer: Player): any {
@@ -1069,7 +1041,7 @@ class Card extends EffectSource {
     //         popupMenuText: this.popupMenuText,
     //         showPopup: this.showPopup,
     //         tokens: this.tokens,
-    //         type: this.getType(),
+    //         types: this.types,
     //         isDishonored: this.isDishonored,
     //         isHonored: this.isHonored,
     //         isTainted: !!this.isTainted,
@@ -1082,7 +1054,7 @@ class Card extends EffectSource {
     // --------------------------- TODO: type annotations for all of the below --------------------------
 
     // this will be helpful if we ever get a card where a stat that is 'X, where X is ...'
-    getPrintedStat(type: StatType) {
+    public getPrintedStat(type: StatType) {
         switch (type) {
             case StatType.Power:
                 return this.cardData.power === null || this.cardData.power === undefined
@@ -1102,7 +1074,7 @@ class Card extends EffectSource {
         }
     }
 
-    addDamage(amount: number) {
+    public addDamage(amount: number) {
         if (
             !Contract.assertNotNullLikeOrNan(this.damage) ||
             !Contract.assertNotNullLikeOrNan(this.hp) ||
@@ -1128,7 +1100,7 @@ class Card extends EffectSource {
     }
 
     /** @returns True if any damage was healed, false otherwise */
-    removeDamage(amount: number): boolean {
+    public removeDamage(amount: number): boolean {
         if (
             !Contract.assertNotNullLikeOrNan(this.damage) ||
             !Contract.assertNotNullLikeOrNan(this.hp) ||
@@ -1143,22 +1115,6 @@ class Card extends EffectSource {
 
         this.damage -= Math.min(amount, this.damage);
         return true;
-    }
-
-    get hp(): number | null {
-        return this.printedHp == null ? null : this.getModifiedStatValue(StatType.Hp);
-    }
-
-    get baseHp(): number | null {
-        return this.printedHp;
-    }
-
-    get power(): number | null {
-        return this.printedPower == null ? null : this.getModifiedStatValue(StatType.Power);
-    }
-
-    get basePower(): number | null {
-        return this.printedPower;
     }
 
     private getModifiedStatValue(statType: StatType, floor = true, excludeModifiers = []) {
@@ -1183,12 +1139,12 @@ class Card extends EffectSource {
 
         let rawEffects;
         if (typeof exclusions === 'function') {
-            rawEffects = this.getRawEffects().filter((effect) => !exclusions(effect));
+            rawEffects = this.getEffects().filter((effect) => !exclusions(effect));
         } else {
-            rawEffects = this.getRawEffects().filter((effect) => !exclusions.includes(effect.type));
+            rawEffects = this.getEffects().filter((effect) => !exclusions.includes(effect.type));
         }
 
-        const modifierEffects: ICardEffect[] = rawEffects.filter((effect) => effect.type === EffectName.ModifyStats);
+        const modifierEffects: IOngoingCardEffect[] = rawEffects.filter((effect) => effect.type === EffectName.ModifyStats);
         const wrappedStatsModifiers = modifierEffects.map((modifierEffect) => StatsModifierWrapper.fromEffect(modifierEffect, this));
 
         return wrappedStatsModifiers;
@@ -1198,19 +1154,15 @@ class Card extends EffectSource {
     // ************************************** DECKCARD.JS ****************************************************
     // *******************************************************************************************************
 
-    get cost() {
-        return this.printedCost;
-    }
-
-    costLessThan(num) {
+    private costLessThan(num) {
         const cost = this.printedCost;
         return num && (cost || cost === 0) && cost < num;
     }
 
-    anotherUniqueInPlay(player) {
+    public anotherUniqueInPlay(player) {
         return (
             this.unique &&
-            this.game.allCards.any(
+            this.game.allCards.some(
                 (card) =>
                     card.isInPlay() &&
                     card.printedName === this.printedTitle && // TODO: also check subtitle
@@ -1220,10 +1172,10 @@ class Card extends EffectSource {
         );
     }
 
-    anotherUniqueInPlayControlledBy(player) {
+    public anotherUniqueInPlayControlledBy(player) {
         return (
             this.unique &&
-            this.game.allCards.any(
+            this.game.allCards.some(
                 (card) =>
                     card.isInPlay() &&
                     card.printedName === this.printedTitle &&
@@ -1252,31 +1204,7 @@ class Card extends EffectSource {
     //     return clone;
     // }
 
-    // hasDash(type = '') {
-    //     if (type === 'glory' || this.printedType !== CardType.Character) {
-    //         return false;
-    //     }
-
-    //     let baseSkillModifiers = this.getBaseSkillModifiers();
-
-    //     if (type === 'military') {
-    //         return isNaN(baseSkillModifiers.baseMilitarySkill);
-    //     } else if (type === 'political') {
-    //         return isNaN(baseSkillModifiers.basePoliticalSkill);
-    //     }
-
-    //     return isNaN(baseSkillModifiers.baseMilitarySkill) || isNaN(baseSkillModifiers.basePoliticalSkill);
-    // }
-
-    // getContributionToConflict(type) {
-    //     let skillFunction = this.mostRecentEffect(EffectName.ChangeContributionFunction);
-    //     if (skillFunction) {
-    //         return skillFunction(this);
-    //     }
-    //     return this.getSkill(type);
-    // }
-
-    // TODO: these status token modifier methods could be reused for attachments
+    // TODO UPGRADES: these status token modifier methods could be reused for upgrades
     // getStatusTokenSkill() {
     //     const modifiers = this.getStatusTokenModifiers();
     //     const skill = modifiers.reduce((total, modifier) => total + modifier.amount, 0);
@@ -1288,7 +1216,7 @@ class Card extends EffectSource {
 
     // getStatusTokenModifiers() {
     //     let modifiers = [];
-    //     let modifierEffects = this.getRawEffects().filter((effect) => effect.type === EffectName.ModifyBothSkills);
+    //     let modifierEffects = this.getEffects().filter((effect) => effect.type === EffectName.ModifyBothSkills);
 
     //     // skill modifiers
     //     modifierEffects.forEach((modifierEffect) => {
@@ -1302,152 +1230,99 @@ class Card extends EffectSource {
     //     return modifiers;
     // }
 
-    // getMilitaryModifiers(exclusions) {
-    //     let baseSkillModifiers = this.getBaseSkillModifiers();
-    //     if (isNaN(baseSkillModifiers.baseMilitarySkill)) {
-    //         return baseSkillModifiers.baseMilitaryModifiers;
-    //     }
-
-    //     if (!exclusions) {
-    //         exclusions = [];
-    //     }
-
-    //     let rawEffects;
-    //     if (typeof exclusions === 'function') {
-    //         rawEffects = this.getRawEffects().filter((effect) => !exclusions(effect));
-    //     } else {
-    //         rawEffects = this.getRawEffects().filter((effect) => !exclusions.includes(effect.type));
-    //     }
-
-    //     // set effects
-    //     let setEffects = rawEffects.filter(
-    //         (effect) => effect.type === EffectName.SetMilitarySkill || effect.type === EffectName.SetDash
-    //     );
-    //     if (setEffects.length > 0) {
-    //         let latestSetEffect = _.last(setEffects);
-    //         let setAmount = latestSetEffect.type === EffectName.SetDash ? undefined : latestSetEffect.getValue(this);
-    //         return [
-    //             StatModifier.fromEffect(
-    //                 setAmount,
-    //                 latestSetEffect,
-    //                 true,
-    //                 `Set by ${StatModifier.getEffectName(latestSetEffect)}`
-    //             )
-    //         ];
-    //     }
-
-    //     let modifiers = baseSkillModifiers.baseMilitaryModifiers;
-
-    //     // skill modifiers
-    //     let modifierEffects = rawEffects.filter(
-    //         (effect) =>
-    //             effect.type === EffectName.AttachmentMilitarySkillModifier ||
-    //             effect.type === EffectName.ModifyMilitarySkill ||
-    //             effect.type === EffectName.ModifyBothSkills
-    //     );
-    //     modifierEffects.forEach((modifierEffect) => {
-    //         const value = modifierEffect.getValue(this);
-    //         modifiers.push(StatModifier.fromEffect(value, modifierEffect));
+    // /**
+    //  * Applies an effect with the specified properties while the current card is
+    //  * attached to another card. By default the effect will target the parent
+    //  * card, but you can provide a match function to narrow down whether the
+    //  * effect is applied (for cases where the effect only applies to specific
+    //  * characters).
+    //  */
+    // whileAttached(properties: Pick<PersistentEffectProps<this>, 'condition' | 'match' | 'effect'>) {
+    //     this.persistentEffect({
+    //         condition: properties.condition || (() => true),
+    //         match: (card, context) => card === this.parent && (!properties.match || properties.match(card, context)),
+    //         targetController: RelativePlayer.Any,
+    //         effect: properties.effect
     //     });
-
-    //     // adjust honor status effects
-    //     this.adjustHonorStatusModifiers(modifiers);
-
-    //     // multipliers
-    //     let multiplierEffects = rawEffects.filter(
-    //         (effect) => effect.type === EffectName.ModifyMilitarySkillMultiplier
-    //     );
-    //     multiplierEffects.forEach((multiplierEffect) => {
-    //         let multiplier = multiplierEffect.getValue(this);
-    //         let currentTotal = modifiers.reduce((total, modifier) => total + modifier.amount, 0);
-    //         let amount = (multiplier - 1) * currentTotal;
-    //         modifiers.push(StatModifier.fromEffect(amount, multiplierEffect));
-    //     });
-
-    //     return modifiers;
     // }
 
-    // getPoliticalModifiers(exclusions) {
-    //     let baseSkillModifiers = this.getBaseSkillModifiers();
-    //     if (isNaN(baseSkillModifiers.basePoliticalSkill)) {
-    //         return baseSkillModifiers.basePoliticalModifiers;
+    // /**
+    //  * Checks whether the passed card meets the attachment restrictions (e.g.
+    //  * Opponent cards only, specific factions, etc) for this card.
+    //  */
+    // canAttach(parent?: BaseCard, properties = { ignoreType: false, controller: this.controller }) {
+    //     if (!(parent instanceof BaseCard)) {
+    //         return false;
     //     }
 
-    //     if (!exclusions) {
-    //         exclusions = [];
+    //     if (
+    //         parent.getType() !== CardType.Character ||
+    //         (!properties.ignoreType && this.getType() !== CardType.Attachment)
+    //     ) {
+    //         return false;
     //     }
 
-    //     let rawEffects;
-    //     if (typeof exclusions === 'function') {
-    //         rawEffects = this.getRawEffects().filter((effect) => !exclusions(effect));
-    //     } else {
-    //         rawEffects = this.getRawEffects().filter((effect) => !exclusions.includes(effect.type));
+    //     const attachmentController = properties.controller ?? this.controller;
+    //     for (const effect of this.getEffects() as OngoingCardEffect[]) {
+    //         switch (effect.type) {
+    //             case EffectName.AttachmentMyControlOnly: {
+    //                 if (attachmentController !== parent.controller) {
+    //                     return false;
+    //                 }
+    //                 break;
+    //             }
+    //             case EffectName.AttachmentOpponentControlOnly: {
+    //                 if (attachmentController === parent.controller) {
+    //                     return false;
+    //                 }
+    //                 break;
+    //             }
+    //             case EffectName.AttachmentUniqueRestriction: {
+    //                 if (!parent.isUnique()) {
+    //                     return false;
+    //                 }
+    //                 break;
+    //             }
+    //             case EffectName.AttachmentFactionRestriction: {
+    //                 const factions = effect.getValue<Faction[]>(this as any);
+    //                 if (!factions.some((faction) => parent.isFaction(faction))) {
+    //                     return false;
+    //                 }
+    //                 break;
+    //             }
+    //             case EffectName.AttachmentTraitRestriction: {
+    //                 const traits = effect.getValue<string[]>(this as any);
+    //                 if (!traits.some((trait) => parent.hasTrait(trait))) {
+    //                     return false;
+    //                 }
+    //                 break;
+    //             }
+    //             case EffectName.AttachmentCardCondition: {
+    //                 const cardCondition = effect.getValue<(card: BaseCard) => boolean>(this as any);
+    //                 if (!cardCondition(parent)) {
+    //                     return false;
+    //                 }
+    //                 break;
+    //             }
+    //         }
     //     }
-
-    //     // set effects
-    //     let setEffects = rawEffects.filter((effect) => effect.type === EffectName.SetPoliticalSkill);
-    //     if (setEffects.length > 0) {
-    //         let latestSetEffect = _.last(setEffects);
-    //         let setAmount = latestSetEffect.getValue(this);
-    //         return [
-    //             StatModifier.fromEffect(
-    //                 setAmount,
-    //                 latestSetEffect,
-    //                 true,
-    //                 `Set by ${StatModifier.getEffectName(latestSetEffect)}`
-    //             )
-    //         ];
-    //     }
-
-    //     let modifiers = baseSkillModifiers.basePoliticalModifiers;
-
-    //     // skill modifiers
-    //     let modifierEffects = rawEffects.filter(
-    //         (effect) =>
-    //             effect.type === EffectName.AttachmentPoliticalSkillModifier ||
-    //             effect.type === EffectName.ModifyPoliticalSkill ||
-    //             effect.type === EffectName.ModifyBothSkills
-    //     );
-    //     modifierEffects.forEach((modifierEffect) => {
-    //         const value = modifierEffect.getValue(this);
-    //         modifiers.push(StatModifier.fromEffect(value, modifierEffect));
-    //     });
-
-    //     // adjust honor status effects
-    //     this.adjustHonorStatusModifiers(modifiers);
-
-    //     // multipliers
-    //     let multiplierEffects = rawEffects.filter(
-    //         (effect) => effect.type === EffectName.ModifyPoliticalSkillMultiplier
-    //     );
-    //     multiplierEffects.forEach((multiplierEffect) => {
-    //         let multiplier = multiplierEffect.getValue(this);
-    //         let currentTotal = modifiers.reduce((total, modifier) => total + modifier.amount, 0);
-    //         let amount = (multiplier - 1) * currentTotal;
-    //         modifiers.push(StatModifier.fromEffect(amount, multiplierEffect));
-    //     });
-
-    //     return modifiers;
+    //     return true;
     // }
 
-    get showStats() {
-        return isArena(this.location) && this.type === CardType.Unit;
-    }
-
-    exhaust() {
+    public exhaust() {
         this.exhausted = true;
     }
 
-    ready() {
+    public ready() {
         this.exhausted = false;
     }
 
-    canPlay(context, type) {
+    public canPlay(context, type) {
         return (
-            this.checkRestrictions(type, context) &&
-            context.player.checkRestrictions(type, context) &&
-            this.checkRestrictions('play', context) &&
-            context.player.checkRestrictions('play', context)
+            !this.hasRestriction(type, context) &&
+            !context.player.hasRestriction(type, context) &&
+            !this.hasRestriction(AbilityRestriction.Play, context) &&
+            !context.player.hasRestriction(AbilityRestriction.Play, context)
         );
     }
 
@@ -1458,7 +1333,7 @@ class Card extends EffectSource {
      *
      * Note that a card becoming a resource is _not_ leaving play.
      */
-    leavesPlay() {
+    public leavesPlay() {
         // // If this is an attachment and is attached to another card, we need to remove all links between them
         // if (this.parent && this.parent.attachments) {
         //     this.parent.removeAttachment(this);
@@ -1467,7 +1342,7 @@ class Card extends EffectSource {
 
         // TODO: reuse this for capture logic
         // // Remove any cards underneath from the game
-        // const cardsUnderneath = this.controller.getSourceListForPile(this.uuid).map((a) => a);
+        // const cardsUnderneath = this.controller.getCardPile(this.uuid).map((a) => a);
         // if (cardsUnderneath.length > 0) {
         //     cardsUnderneath.forEach((card) => {
         //         this.controller.moveCard(card, Location.RemovedFromGame);
@@ -1491,8 +1366,8 @@ class Card extends EffectSource {
             case Location.SpaceArena:
             case Location.GroundArena:
                 this.controller = this.owner;
-                this.exhausted = this.type === CardType.Unit ? true : null;
-                this.damage = this.type === CardType.Unit ? 0 : null;
+                this.exhausted = this.isUnit() ? true : null;
+                this.damage = this.isUnit() ? 0 : null;
                 this.playedThisTurn = false;
                 this.facedown = false;
                 this.hiddenForController = false;
@@ -1502,8 +1377,8 @@ class Card extends EffectSource {
             case Location.Base:
             case Location.Leader:
                 this.controller = this.owner;
-                this.exhausted = this.type === CardType.Leader ? false : null;
-                this.damage = this.type === CardType.Base ? 0 : null;
+                this.exhausted = this.isLeader() ? false : null;
+                this.damage = this.isBase() ? 0 : null;
                 this.playedThisTurn = false;
                 this.facedown = false;
                 this.hiddenForController = false;
@@ -1558,140 +1433,16 @@ class Card extends EffectSource {
         }
     }
 
-    // canDeclareAsAttacker(conflictType, ring, province, incomingAttackers = undefined) {
-    //     // eslint-disable-line no-unused-vars
-    //     if (!province) {
-    //         let provinces =
-    //             this.game.currentConflict && this.game.currentConflict.defendingPlayer
-    //                 ? this.game.currentConflict.defendingPlayer.getProvinces()
-    //                 : null;
-    //         if (provinces) {
-    //             return provinces.some(
-    //                 (a) =>
-    //                     a.canDeclare(conflictType, ring) &&
-    //                     this.canDeclareAsAttacker(conflictType, ring, a, incomingAttackers)
-    //             );
-    //         }
-    //     }
-
-    //     let attackers = this.game.isDuringConflict() ? this.game.currentConflict.attackers : [];
-    //     if (incomingAttackers) {
-    //         attackers = incomingAttackers;
-    //     }
-    //     if (!attackers.includes(this)) {
-    //         attackers = attackers.concat(this);
-    //     }
-
-    //     // Check if I add an element that I can\'t attack with
-    //     const elementsAdded = this.upgrades.reduce(
-    //         (array, attachment) => array.concat(attachment.getEffects(EffectName.AddElementAsAttacker)),
-    //         this.getEffects(EffectName.AddElementAsAttacker)
-    //     );
-
-    //     if (
-    //         elementsAdded.some((element) =>
-    //             this.game.rings[element]
-    //                 .getEffects(EffectName.CannotDeclareRing)
-    //                 .some((match) => match(this.controller))
-    //         )
-    //     ) {
-    //         return false;
-    //     }
-
-    //     if (
-    //         conflictType === ConflictTypes.Military &&
-    //         attackers.reduce((total, card) => total + card.sumEffects(EffectName.CardCostToAttackMilitary), 0) >
-    //             this.controller.hand.size()
-    //     ) {
-    //         return false;
-    //     }
-
-    //     let fateCostToAttackProvince = province ? province.getFateCostToAttack() : 0;
-    //     if (
-    //         attackers.reduce((total, card) => total + card.sumEffects(EffectName.FateCostToAttack), 0) +
-    //             fateCostToAttackProvince >
-    //         this.controller.fate
-    //     ) {
-    //         return false;
-    //     }
-    //     if (this.anyEffect(EffectName.CanOnlyBeDeclaredAsAttackerWithElement)) {
-    //         for (let element of this.getEffects(EffectName.CanOnlyBeDeclaredAsAttackerWithElement)) {
-    //             if (!ring.hasElement(element) && !elementsAdded.includes(element)) {
-    //                 return false;
-    //             }
-    //         }
-    //     }
-
-    //     if (this.controller.anyEffect(EffectName.LimitLegalAttackers)) {
-    //         const checks = this.controller.getEffects(EffectName.LimitLegalAttackers);
-    //         let valid = true;
-    //         checks.forEach((check) => {
-    //             if (typeof check === 'function') {
-    //                 valid = valid && check(this);
-    //             }
-    //         });
-    //         if (!valid) {
-    //             return false;
-    //         }
-    //     }
-
-    //     return (
-    //         this.checkRestrictions('declareAsAttacker', this.game.getFrameworkContext()) &&
-    //         this.canParticipateAsAttacker(conflictType) &&
-    //         this.location === Location.PlayArea &&
-    //         !this.exhausted
-    //     );
-    // }
-
-    // canDeclareAsDefender(conflictType = this.game.currentConflict.conflictType) {
-    //     return (
-    //         this.checkRestrictions('declareAsDefender', this.game.getFrameworkContext()) &&
-    //         this.canParticipateAsDefender(conflictType) &&
-    //         this.location === Location.PlayArea &&
-    //         !this.exhausted &&
-    //         !this.covert
-    //     );
-    // }
-
-    // canParticipateAsAttacker(conflictType = this.game.currentConflict.conflictType) {
-    //     let effects = this.getEffects(EffectName.CannotParticipateAsAttacker);
-    //     return !effects.some((value) => value === 'both' || value === conflictType) && !this.hasDash(conflictType);
-    // }
-
-    // canParticipateAsDefender(conflictType = this.game.currentConflict.conflictType) {
-    //     let effects = this.getEffects(EffectName.CannotParticipateAsDefender);
-    //     let hasDash = conflictType ? this.hasDash(conflictType) : false;
-
-    //     return !effects.some((value) => value === 'both' || value === conflictType) && !hasDash;
-    // }
-
-    // bowsOnReturnHome() {
-    //     return !this.anyEffect(EffectName.DoesNotBow);
-    // }
-
-    setDefaultController(player) {
+    public setDefaultController(player) {
         this.defaultController = player;
     }
 
-    getModifiedController() {
+    public getModifiedController() {
         if (isArena(this.location)) {
             return this.mostRecentEffect(EffectName.TakeControl) || this.defaultController;
         }
         return this.owner;
     }
-
-    // canDisguise(card, context, intoConflictOnly) {
-    //     return (
-    //         this.disguisedKeywordTraits.some((trait) => card.hasTrait(trait)) &&
-    //         card.allowGameAction('discardFromPlay', context) &&
-    //         !card.isUnique() &&
-    //         (!intoConflictOnly || card.isParticipating())
-    //     );
-    // }
-
-    // play() {
-    //     //empty function so playcardaction doesn't crash the game
-    // }
 
     // getSummary(activePlayer, hideWhenFaceup) {
     //     let baseSummary = super.getSummary(activePlayer, hideWhenFaceup);

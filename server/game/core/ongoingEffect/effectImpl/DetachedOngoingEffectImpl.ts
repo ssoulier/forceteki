@@ -1,24 +1,24 @@
 import { AbilityContext } from '../../ability/AbilityContext';
 import { EffectName } from '../../Constants';
-import { EffectImpl } from './EffectImpl';
+import { OngoingEffectImpl } from './OngoingEffectImpl';
 
-export default class DetachedEffectImpl<TValue> extends EffectImpl<TValue> {
+export default class DetachedOngoingEffectImpl<TValue> extends OngoingEffectImpl<TValue> {
     private state: Record<string, any> = {};
 
-    constructor(type: EffectName,
+    public constructor(type: EffectName,
         public applyFunc,
-        public unapplyFunc) {
-        // TODO: change lint rules to allow brace on next line in cases like the above
+        public unapplyFunc
+    ) {
         super(type);
         this.applyFunc = applyFunc;
         this.unapplyFunc = unapplyFunc;
     }
 
-    apply(target: any) {
+    public apply(target: any) {
         this.state[target.uuid] = this.applyFunc(target, this.context, this.state[target.uuid]);
     }
 
-    unapply(target: any) {
+    public unapply(target: any) {
         this.state[target.uuid] = this.unapplyFunc(target, this.context, this.state[target.uuid]);
         if (this.state[target.uuid] === undefined) {
             // eslint-disable-next-line @typescript-eslint/no-dynamic-delete
@@ -26,15 +26,15 @@ export default class DetachedEffectImpl<TValue> extends EffectImpl<TValue> {
         }
     }
 
-    getValue(target: any) {
+    public getValue(target: any) {
         return null;
     }
 
-    recalculate(target: any): boolean {
+    public recalculate(target: any): boolean {
         return false;
     }
 
-    override setContext(context: AbilityContext) {
+    public override setContext(context: AbilityContext) {
         super.setContext(context);
         for (const state of Object.values(this.state)) {
             if (state.context) {

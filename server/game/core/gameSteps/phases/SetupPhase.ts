@@ -8,37 +8,37 @@ import ResourcePrompt from '../prompts/ResourcePrompt';
 import Player from '../../Player';
 
 export class SetupPhase extends Phase {
-    constructor(game: Game) {
+    public constructor(game: Game) {
         const name = 'setup';
         super(game, name);
         this.game.currentPhase = name;
         this.pipeline.initialise([
-            new SimpleStep(game, () => this.putBaseInPlay()),
-            new SimpleStep(game, () => this.putLeaderInPlay()),
-            new SimpleStep(game, () => this.chooseFirstPlayer()),
-            new SimpleStep(game, () => this.drawStartingHands()),
-            new SimpleStep(game, () => this.chooseMulligan()),
+            new SimpleStep(game, () => this.putBaseInPlay(), 'putBaseInPlay'),
+            new SimpleStep(game, () => this.putLeaderInPlay(), 'putLeaderInPlay'),
+            new SimpleStep(game, () => this.chooseFirstPlayer(), 'chooseFirstPlayer'),
+            new SimpleStep(game, () => this.drawStartingHands(), 'drawStartingHands'),
+            new SimpleStep(game, () => this.chooseMulligan(), 'chooseMulligan'),
             new ResourcePrompt(game, 2, 2),
 
             // there aren't clear game rules yet for resolving events that trigger during the setup step, so we skip the event window here
-            new SimpleStep(game, () => this.endPhase(true))
+            new SimpleStep(game, () => this.endPhase(true), 'endPhase')
         ]);
     }
 
-    putBaseInPlay() {
+    private putBaseInPlay() {
         for (const player of this.game.getPlayers()) {
             player.moveCard(player.base, Location.Base);
             player.damageToBase = 0;
         }
     }
 
-    putLeaderInPlay() {
+    private putLeaderInPlay() {
         for (const player of this.game.getPlayers()) {
             player.moveCard(player.leader, Location.Leader);
         }
     }
 
-    chooseFirstPlayer() {
+    private chooseFirstPlayer() {
         const firstPlayer = randomItem(this.game.getPlayers());
 
         this.game.promptWithHandlerMenu(firstPlayer, {
@@ -56,7 +56,7 @@ export class SetupPhase extends Phase {
         });
     }
 
-    chooseMulligan() {
+    private chooseMulligan() {
         const playersByInitiative = [this.game.initiativePlayer, this.game.initiativePlayer.opponent];
         for (const player of playersByInitiative) {
             this.game.promptWithHandlerMenu(player, {
@@ -81,7 +81,7 @@ export class SetupPhase extends Phase {
         }
     }
 
-    drawStartingHands() {
+    private drawStartingHands() {
         for (const player of this.game.getPlayers()) {
             player.shuffleDeck();
             player.drawCardsToHand(6);

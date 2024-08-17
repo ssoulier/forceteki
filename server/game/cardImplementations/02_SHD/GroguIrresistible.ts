@@ -1,4 +1,4 @@
-import AbilityDsl from '../../AbilityDsl';
+import AbilityHelper from '../../AbilityHelper';
 import Card from '../../core/card/Card';
 
 export default class GroguIrresistible extends Card {
@@ -9,13 +9,13 @@ export default class GroguIrresistible extends Card {
         };
     }
 
-    override setupCardAbilities() {
+    public override setupCardAbilities() {
         this.actionAbility({
             title: 'Exhaust an enemy unit',
-            cost: AbilityDsl.costs.exhaustSelf(),
-            target: {
+            cost: AbilityHelper.costs.exhaustSelf(),
+            targetResolver: {
                 cardCondition: (card) => card.controller !== this.controller,
-                gameSystem: AbilityDsl.immediateEffects.exhaust()
+                immediateEffect: AbilityHelper.immediateEffects.exhaust()
             }
         });
     }

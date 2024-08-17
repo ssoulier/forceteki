@@ -1,8 +1,8 @@
 import CardAbility from './CardAbility';
 import { TriggeredAbilityContext } from './TriggeredAbilityContext';
 import { Stage, CardType, EffectName, AbilityType } from '../Constants';
-import { ITriggeredAbilityProps, ITriggeredAbilityWhenProps, WhenType } from '../../Interfaces';
-import { Event } from '../event/Event';
+import { ITriggeredAbilityProps, WhenType } from '../../Interfaces';
+import { GameEvent } from '../event/GameEvent';
 import Card from '../card/Card';
 import Game from '../Game';
 import { TriggeredAbilityWindow } from '../gameSteps/abilityWindow/TriggeredAbilityWindow';
@@ -11,7 +11,7 @@ import type CardAbilityStep from './CardAbilityStep';
 
 interface IEventRegistration {
     name: string;
-    handler: (event: Event, window: TriggeredAbilityWindow) => void;
+    handler: (event: GameEvent, window: TriggeredAbilityWindow) => void;
 }
 
 /**
@@ -42,13 +42,13 @@ interface IEventRegistration {
  */
 
 export default class TriggeredAbility extends CardAbility {
-    when?: WhenType;
-    aggregateWhen?: (events: Event[], context: TriggeredAbilityContext) => boolean;
-    anyPlayer: boolean;
-    collectiveTrigger: boolean;
-    eventRegistrations?: IEventRegistration[];
+    public when?: WhenType;
+    public aggregateWhen?: (events: GameEvent[], context: TriggeredAbilityContext) => boolean;
+    public anyPlayer: boolean;
+    public collectiveTrigger: boolean;
+    public eventRegistrations?: IEventRegistration[];
 
-    constructor(game: Game, card: Card, properties: ITriggeredAbilityProps) {
+    public constructor(game: Game, card: Card, properties: ITriggeredAbilityProps) {
         super(game, card, properties, AbilityType.TriggeredAbility);
 
         if ('when' in properties) {
@@ -60,25 +60,7 @@ export default class TriggeredAbility extends CardAbility {
         this.collectiveTrigger = !!properties.collectiveTrigger;
     }
 
-    override meetsRequirements(context, ignoredRequirements = []) {
-        const canOpponentTrigger =
-            this.card.anyEffect(EffectName.CanBeTriggeredByOpponent) &&
-            this.abilityType !== AbilityType.ForcedReaction;
-        const canPlayerTrigger = this.anyPlayer || context.player === this.card.controller || canOpponentTrigger;
-
-        if (!ignoredRequirements.includes('player') && !canPlayerTrigger) {
-            if (
-                this.card.type !== CardType.Event ||
-                !context.player.isCardInPlayableLocation(this.card, context.playType)
-            ) {
-                return 'player';
-            }
-        }
-
-        return super.meetsRequirements(context, ignoredRequirements);
-    }
-
-    eventHandler(event, window) {
+    public eventHandler(event, window) {
         if (!Contract.assertNotNullLike(window)) {
             return;
         }
@@ -96,21 +78,25 @@ export default class TriggeredAbility extends CardAbility {
         }
     }
 
-    private checkAggregateWhen(events, window) {
-        for (const player of this.game.getPlayers()) {
-            const context = this.createContext(player, events);
-            //console.log(events.map(event => event.name), this.card.name, this.aggregateWhen(events, context), this.meetsRequirements(context));
+    public override meetsRequirements(context, ignoredRequirements = []) {
+        const canOpponentTrigger =
+            this.card.anyEffect(EffectName.CanBeTriggeredByOpponent) &&
+            this.abilityType !== AbilityType.TriggeredAbility;
+        const canPlayerTrigger = this.anyPlayer || context.player === this.card.controller || canOpponentTrigger;
+
+        if (!ignoredRequirements.includes('player') && !canPlayerTrigger) {
             if (
-                this.card.triggeredAbilities.includes(this) &&
-                this.aggregateWhen(events, context) &&
-                this.meetsRequirements(context) === ''
+                !this.card.isEvent() ||
+                !context.player.isCardInPlayableLocation(this.card, context.playType)
             ) {
-                window.addToWindow(context);
+                return 'player';
             }
         }
+
+        return super.meetsRequirements(context, ignoredRequirements);
     }
 
-    override createContext(player = this.card.controller, event: Event) {
+    public override createContext(player = this.card.controller, event: GameEvent) {
         return new TriggeredAbilityContext({
             event: event,
             game: this.game,
@@ -121,13 +107,7 @@ export default class TriggeredAbility extends CardAbility {
         });
     }
 
-    isTriggeredByEvent(event, context) {
-        const listener = this.when[event.name];
-
-        return listener && listener(event, context);
-    }
-
-    registerEvents() {
+    public registerEvents() {
         if (this.eventRegistrations) {
             return;
         } else if (this.aggregateWhen) {
@@ -153,12 +133,32 @@ export default class TriggeredAbility extends CardAbility {
         });
     }
 
-    unregisterEvents() {
+    public unregisterEvents() {
         if (this.eventRegistrations) {
             this.eventRegistrations.forEach((event) => {
                 this.game.removeListener(event.name, event.handler);
             });
             this.eventRegistrations = null;
+        }
+    }
+
+    private isTriggeredByEvent(event, context) {
+        const listener = this.when[event.name];
+
+        return listener && listener(event, context);
+    }
+
+    private checkAggregateWhen(events, window) {
+        for (const player of this.game.getPlayers()) {
+            const context = this.createContext(player, events);
+            //console.log(events.map(event => event.name), this.card.name, this.aggregateWhen(events, context), this.meetsRequirements(context));
+            if (
+                this.card.triggeredAbilities.includes(this) &&
+                this.aggregateWhen(events, context) &&
+                this.meetsRequirements(context) === ''
+            ) {
+                window.addToWindow(context);
+            }
         }
     }
 }

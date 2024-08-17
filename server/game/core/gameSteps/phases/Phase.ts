@@ -8,30 +8,30 @@ import type { IStep } from '../IStep';
 export abstract class Phase extends BaseStepWithPipeline {
     public steps: IStep[] = [];
 
-    constructor(
+    public constructor(
         game: Game,
         private name: PhaseName | 'setup'
     ) {
         super(game);
     }
 
-    initialise(steps: IStep[]): void {
-        this.pipeline.initialise([new SimpleStep(this.game, () => this.createPhase())]);
-        const startStep = new SimpleStep(this.game, () => this.startPhase());
-        const endStep = new SimpleStep(this.game, () => this.endPhase());
+    public initialise(steps: IStep[]): void {
+        this.pipeline.initialise([new SimpleStep(this.game, () => this.createPhase(), 'createPhase')]);
+        const startStep = new SimpleStep(this.game, () => this.startPhase(), 'startPhase');
+        const endStep = new SimpleStep(this.game, () => this.endPhase(), 'endPhase');
         this.steps = [startStep, ...steps, endStep];
     }
 
-    createPhase(): void {
-        this.game.raiseEvent(EventName.OnPhaseCreated, { phase: this.name }, () => {
+    protected createPhase(): void {
+        this.game.createEventAndOpenWindow(EventName.OnPhaseCreated, { phase: this.name }, () => {
             for (const step of this.steps) {
                 this.game.queueStep(step);
             }
         });
     }
 
-    startPhase(): void {
-        this.game.raiseEvent(EventName.OnPhaseStarted, { phase: this.name }, () => {
+    protected startPhase(): void {
+        this.game.createEventAndOpenWindow(EventName.OnPhaseStarted, { phase: this.name }, () => {
             this.game.currentPhase = this.name;
             if (this.name !== 'setup') {
                 this.game.addAlert('endofround', 'turn: {0} - {1} phase', this.game.roundNumber, this.name);
@@ -39,10 +39,10 @@ export abstract class Phase extends BaseStepWithPipeline {
         });
     }
 
-    endPhase(skipEventWindow = false): void {
+    protected endPhase(skipEventWindow = false): void {
         if (!skipEventWindow) {
-            this.game.raiseEvent(EventName.OnPhaseEnded, { phase: this.name });
+            this.game.createEventAndOpenWindow(EventName.OnPhaseEnded, { phase: this.name });
         }
-        this.game.currentPhase = '';
+        this.game.currentPhase = null;
     }
 }

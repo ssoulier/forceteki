@@ -1,4 +1,4 @@
-import AbilityDsl from '../../AbilityDsl';
+import AbilityHelper from '../../AbilityHelper';
 import { AbilityContext } from '../../core/ability/AbilityContext';
 import { Attack } from '../../core/attack/Attack';
 import Card from '../../core/card/Card';
@@ -12,7 +12,7 @@ export default class FleetLieutenant extends Card {
         };
     }
 
-    override setupCardAbilities() {
+    protected override setupCardAbilities() {
         this.whenPlayedAbility({
             title: 'Attack with a unit',
             optional: true,
@@ -26,7 +26,7 @@ export default class FleetLieutenant extends Card {
         if (attack.attacker.hasTrait(Trait.Rebel)) {
             return {
                 target: attack.attacker,
-                effect: AbilityDsl.ongoingEffects.modifyStats({ power: 2, hp: 0 }),
+                effect: AbilityHelper.ongoingEffects.modifyStats({ power: 2, hp: 0 }),
             };
         }
         return null;

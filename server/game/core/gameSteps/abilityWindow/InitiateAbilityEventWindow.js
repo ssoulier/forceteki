@@ -1,9 +1,9 @@
-const _ = require('underscore');
 const EventWindow = require('../../event/EventWindow.js');
 const { TriggeredAbilityWindow } = require('../../gameSteps/abilityWindow/TriggeredAbilityWindow.js');
 const { EventName, AbilityType } = require('../../Constants.js');
 
 // TODO: convert to TS
+// TODO EFFECTS: see if the below code is useful for replacement effects
 class InitiateAbilityInterruptWindow extends TriggeredAbilityWindow {
     constructor(game, abilityType, eventWindow) {
         super(game, abilityType, eventWindow);
@@ -16,9 +16,9 @@ class InitiateAbilityInterruptWindow extends TriggeredAbilityWindow {
         if (this.playEvent && this.currentlyResolvingPlayer === this.playEvent.player && this.playEvent.resolver.canCancel) {
             buttons.push({ text: 'Cancel', arg: 'cancel' });
         }
-        if (this.getMinCostReduction() === 0) {
-            buttons.push({ text: 'Pass', arg: 'pass' });
-        }
+        // if (this.getMinCostReduction() === 0) {
+        //     buttons.push({ text: 'Pass', arg: 'pass' });
+        // }
         return Object.assign(super.getPromptForSelectProperties(), {
             buttons: buttons,
             onCancel: () => {
@@ -28,16 +28,17 @@ class InitiateAbilityInterruptWindow extends TriggeredAbilityWindow {
         });
     }
 
-    getMinCostReduction() {
-        if (this.playEvent) {
-            const context = this.playEvent.context;
-            const alternatePools = context.player.getAlternateFatePools(this.playEvent.playType, context.source, context);
-            const alternatePoolTotal = alternatePools.reduce((total, pool) => total + pool.fate, 0);
-            const maxPlayerFate = context.player.checkRestrictions('spendFate', context) ? context.player.fate : 0;
-            return Math.max(context.ability.getReducedCost(context) - maxPlayerFate - alternatePoolTotal, 0);
-        }
-        return 0;
-    }
+    // TODO: unclear what the purpose of this was
+    // getMinCostReduction() {
+    //     if (this.playEvent) {
+    //         const context = this.playEvent.context;
+    //         const alternatePools = context.player.getAlternateFatePools(this.playEvent.playType, context.source, context);
+    //         const alternatePoolTotal = alternatePools.reduce((total, pool) => total + pool.fate, 0);
+    //         const maxPlayerFate = context.player.hasRestriction('spendFate', context) ? 0 : context.player.fate;
+    //         return Math.max(context.ability.getReducedCost(context) - maxPlayerFate - alternatePoolTotal, 0);
+    //     }
+    //     return 0;
+    // }
 
     /** @override */
     resolveAbility(context) {
@@ -49,11 +50,21 @@ class InitiateAbilityInterruptWindow extends TriggeredAbilityWindow {
 }
 
 class InitiateAbilityEventWindow extends EventWindow {
+    // TODO EFFECTS: see if the below code is useful for replacement effects
+    // /** @override */
+    // openWindow(abilityType) {
+    //     if (this.events.length && abilityType === AbilityTypes.Interrupt) {
+    //         this.queueStep(new InitiateAbilityInterruptWindow(this.game, abilityType, this));
+    //     } else {
+    //         super.openWindow(abilityType);
+    //     }
+    // }
+
     /** @override */
     executeHandler() {
-        this.eventsToExecute = _.sortBy(this.events, 'order');
+        this.eventsToExecute = this.events.sort((event) => event.order);
 
-        _.each(this.eventsToExecute, (event) => {
+        this.eventsToExecute.forEach((event) => {
             event.checkCondition();
             if (!event.cancelled) {
                 event.executeHandler();
@@ -63,12 +74,12 @@ class InitiateAbilityEventWindow extends EventWindow {
         // TODO: should we be doing this here?
         // We need to separate executing the handler and emitting events as in this window, the handler just
         // queues ability resolution steps, and we don't want the events to be emitted until step 8
-        this.game.queueSimpleStep(() => this.emitEvents());
+        this.game.queueSimpleStep(() => this.emitEvents(), 'emitEvents for InitiateAbilityEventWindow');
     }
 
     emitEvents() {
         this.eventsToExecute = this.eventsToExecute.filter((event) => !event.cancelled);
-        _.each(this.eventsToExecute, (event) => this.game.emit(event.name, event));
+        this.eventsToExecute.forEach((event) => this.game.emit(event.name, event));
     }
 }
 

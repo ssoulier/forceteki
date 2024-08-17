@@ -1,27 +1,27 @@
 import { AbilityContext } from '../../ability/AbilityContext';
 import { EffectName } from '../../Constants';
-import { EffectImpl } from './EffectImpl';
-import { EffectValue } from './EffectValue';
-import StaticEffectImpl from './StaticEffectImpl';
+import { OngoingEffectImpl } from './OngoingEffectImpl';
+import { OngoingEffectValueWrapper } from './OngoingEffectValueWrapper';
+import StaticOngoingEffectImpl from './StaticOngoingEffectImpl';
 
-// TODO: eventually this will subclass EffectImpl directly but I don't fully understand how it uses the apply()
-// function inherited from StaticEffectImpl yet (seems like it shouldn't work)
-export default class DynamicEffectImpl<TValue> extends StaticEffectImpl<TValue> {
+// TODO: eventually this will subclass OngoingEffectImpl directly but I don't fully understand how it uses the apply()
+// function inherited from StaticOngoingEffectImpl yet (seems like it shouldn't work)
+export default class DynamicOngoingEffectImpl<TValue> extends StaticOngoingEffectImpl<TValue> {
     private values: Record<string, TValue> = {};
 
-    constructor(
+    public constructor(
         type: EffectName,
         private calculate: ((target: any, context: AbilityContext) => TValue)
     ) {
         super(type, null);
     }
 
-    override apply(target) {
+    public override apply(target) {
         super.apply(target);
         this.recalculate(target);
     }
 
-    override recalculate(target) {
+    public override recalculate(target) {
         const oldValue = this.getValue(target);
         const newValue = this.setValue(target, this.calculate(target, this.context));
         if (typeof oldValue === 'function' && typeof newValue === 'function') {
@@ -33,7 +33,7 @@ export default class DynamicEffectImpl<TValue> extends StaticEffectImpl<TValue> 
         return oldValue !== newValue;
     }
 
-    override getValue(target) {
+    public override getValue(target) {
         return this.values[target.uuid];
     }
 
@@ -43,4 +43,4 @@ export default class DynamicEffectImpl<TValue> extends StaticEffectImpl<TValue> 
     }
 }
 
-module.exports = DynamicEffectImpl;
+module.exports = DynamicOngoingEffectImpl;

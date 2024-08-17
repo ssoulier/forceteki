@@ -1,11 +1,10 @@
 import type { AbilityContext } from '../../ability/AbilityContext';
 
-// UP NEXT: rename this to EffectValueWrapper
-export class EffectValue<V> {
-    value: V;
-    context?: AbilityContext;
+export class OngoingEffectValueWrapper<TValue> {
+    public value: TValue;
+    public context?: AbilityContext;
 
-    constructor(value: V) {
+    public constructor(value: TValue) {
         // @ts-expect-error
         this.value = value == null ? true : value;
     }
@@ -14,7 +13,7 @@ export class EffectValue<V> {
         this.context = context;
     }
 
-    public getValue(): V {
+    public getValue(): TValue {
         return this.value;
     }
 

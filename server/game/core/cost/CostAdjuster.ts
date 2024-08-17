@@ -26,7 +26,7 @@ export class CostAdjuster {
     private limit?: IAbilityLimit;
     private playingTypes?: PlayType[];
 
-    constructor(
+    public constructor(
         private game: Game,
         private source: Card,
         properties: CostAdjusterProperties,
@@ -49,7 +49,7 @@ export class CostAdjuster {
     public canAdjust(playingType: PlayType, card: Card, target?: Card, ignoreType = false, penaltyAspect?: Aspect): boolean {
         if (this.limit && this.limit.isAtMax(this.source.controller)) {
             return false;
-        } else if (!ignoreType && this.cardType && card.getType() !== this.cardType) {
+        } else if (!ignoreType && this.cardType && card.hasSomeType(this.cardType)) {
             return false;
         } else if (this.playingTypes && !this.playingTypes.includes(playingType)) {
             return false;

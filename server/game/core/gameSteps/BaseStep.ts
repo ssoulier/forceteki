@@ -4,11 +4,13 @@ import type Player from '../Player';
 import type { IStep } from './IStep';
 
 export abstract class BaseStep implements IStep {
-    // UP NEXT: add naming for steps, pipelines, etc. to make debugging easier. maybe source reference in debug mode
-    // maybe names only in debug mode too?
-    constructor(public game: Game) {}
+    public constructor(public game: Game) {}
 
-    abstract continue(): boolean;
+    /**
+     * Resolve the pipeline step
+     * @returns {boolean} True if step has finished resolving upon return, false if it has not (typically because new steps have been queued that need to be resolved first)
+     */
+    public abstract continue(): boolean;
 
     public onCardClicked(player: Player, card: Card): boolean {
         return false;

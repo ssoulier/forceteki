@@ -1,8 +1,6 @@
-const _ = require('underscore');
-
 const { AbilityContext } = require('../../ability/AbilityContext.js');
 const CardSelector = require('../../cardSelector/CardSelector.js');
-const EffectSource = require('../../effect/EffectSource.js');
+const OngoingEffectSource = require('../../ongoingEffect/OngoingEffectSource.js');
 const { UiPrompt } = require('./UiPrompt.js');
 
 /**
@@ -55,8 +53,8 @@ class SelectCardPrompt extends UiPrompt {
         super(game);
 
         this.choosingPlayer = choosingPlayer;
-        if (_.isString(properties.source)) {
-            properties.source = new EffectSource(game, properties.source);
+        if (typeof properties.source === 'string') {
+            properties.source = new OngoingEffectSource(game, properties.source);
         } else if (properties.context && properties.context.source) {
             properties.source = properties.context.source;
         }
@@ -64,19 +62,19 @@ class SelectCardPrompt extends UiPrompt {
             properties.waitingPromptTitle = 'Waiting for opponent to use ' + properties.source.name;
         }
         if (!properties.source) {
-            properties.source = new EffectSource(game);
+            properties.source = new OngoingEffectSource(game);
         }
 
         this.properties = properties;
         this.context = properties.context || new AbilityContext({ game: game, player: choosingPlayer, source: properties.source });
-        _.defaults(this.properties, this.defaultProperties());
-        if (properties.gameSystem) {
-            if (!Array.isArray(properties.gameSystem)) {
-                this.properties.gameSystem = [properties.gameSystem];
+        this.properties = Object.assign(this.defaultProperties(), properties);
+        if (properties.immediateEffect) {
+            if (!Array.isArray(properties.immediateEffect)) {
+                this.properties.immediateEffect = [properties.immediateEffect];
             }
             let cardCondition = this.properties.cardCondition;
             this.properties.cardCondition = (card, context) =>
-                cardCondition(card, context) && this.properties.gameSystem.some((gameSystem) => gameSystem.canAffect(card, context));
+                cardCondition(card, context) && this.properties.immediateEffect.some((gameSystem) => gameSystem.canAffect(card, context));
         }
         this.hideIfNoLegalTargets = properties.hideIfNoLegalTargets;
         this.selector = properties.selector || CardSelector.for(this.properties);
@@ -218,7 +216,7 @@ class SelectCardPrompt extends UiPrompt {
         if (!this.selectedCards.includes(card)) {
             this.selectedCards.push(card);
         } else {
-            this.selectedCards = _.reject(this.selectedCards, (c) => c === card);
+            this.selectedCards = this.selectedCards.filter((c) => c !== card);
         }
         this.choosingPlayer.setSelectedCards(this.selectedCards);
 

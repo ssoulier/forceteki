@@ -1,19 +1,19 @@
-const Effect = require('./Effect.js');
+const OngoingEffect = require('./OngoingEffect.js');
 const { RelativePlayer, WildcardLocation } = require('../Constants.js');
 const { isArena } = require('../utils/EnumHelpers.js');
 
-// TODO: confusingly, this is not an implementation of ICardEffect. what's the relationship supposed to be?
-class CardEffect extends Effect {
+// TODO: confusingly, this is not an implementation of IOngoingCardEffect. what's the relationship supposed to be?
+class OngoingCardEffect extends OngoingEffect {
     constructor(game, source, properties, effect) {
         if (!properties.match) {
             properties.match = (card, context) => card === context.source;
-            if (properties.location === WildcardLocation.Any) {
-                properties.targetLocation = WildcardLocation.Any;
+            if (properties.locationFilter === WildcardLocation.Any) {
+                properties.targetLocationFilter = WildcardLocation.Any;
             }
         }
         super(game, source, properties, effect);
         this.targetController = properties.targetController || RelativePlayer.Self;
-        this.targetLocation = properties.targetLocation || WildcardLocation.AnyArena;
+        this.targetLocationFilter = properties.targetLocationFilter || WildcardLocation.AnyArena;
     }
 
     /** @override */
@@ -31,13 +31,13 @@ class CardEffect extends Effect {
 
     /** @override */
     getTargets() {
-        if (this.targetLocation === WildcardLocation.Any) {
+        if (this.targetLocationFilter === WildcardLocation.Any) {
             return this.game.allCards.filter((card) => this.match(card, this.context));
-        } else if (isArena(this.targetLocation)) {
+        } else if (isArena(this.targetLocationFilter)) {
             return this.game.findAnyCardsInPlay((card) => this.match(card, this.context));
         }
-        return this.game.allCards.filter((card) => this.match(card, this.context) && card.location === this.targetLocation);
+        return this.game.allCards.filter((card) => this.match(card, this.context) && card.location === this.targetLocationFilter);
     }
 }
 
-module.exports = CardEffect;
+module.exports = OngoingCardEffect;

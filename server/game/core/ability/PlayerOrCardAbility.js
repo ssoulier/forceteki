@@ -2,6 +2,8 @@ const AbilityTargetAbility = require('./abilityTargets/AbilityTargetAbility.js')
 const AbilityTargetCard = require('./abilityTargets/AbilityTargetCard.js');
 const AbilityTargetSelect = require('./abilityTargets/AbilityTargetSelect.js');
 const { Stage, TargetMode, AbilityType } = require('../Constants.js');
+const { GameEvent } = require('../event/GameEvent.js');
+const { default: Contract } = require('../utils/Contract.js');
 
 // TODO: convert to TS and make this abstract
 /**
@@ -22,26 +24,38 @@ class PlayerOrCardAbility {
      * @param {Object|Array} [properties.cost] - optional property that specifies
      * the cost for the ability. Can either be a cost object or an array of cost
      * objects.
-     * @param {Object} [properties.target] - optional property that specifies
+     * @param {Object} [properties.target] - Optional property that specifies
      * the target of the ability.
-     * @param {Array} [properties.gameSystem] - GameSystem[] optional array of game actions
+     * @param {Array} [properties.immediateEffect] - GameSystem[] optional array of game actions
+     * @param {string} [properties.title] - Name to use for ability display and debugging
+     * @param {string} [properties.cardName] - Optional property that specifies the name of the card, if any
      */
     constructor(properties, abilityType = AbilityType.Action) {
+        Contract.assertStringValue(properties.title);
+
+        this.title = properties.title;
         this.limit = null;
         this.abilityType = abilityType;
-        this.gameSystem = properties.gameSystem || [];
+        this.gameSystem = properties.immediateEffect || [];
         if (!Array.isArray(this.gameSystem)) {
             this.gameSystem = [this.gameSystem];
         }
-        this.buildTargets(properties);
+        this.buildTargetResolvers(properties);
         this.cost = this.buildCost(properties.cost);
         for (const cost of this.cost) {
             if (cost.dependsOn) {
-                let dependsOnTarget = this.targets.find((target) => target.name === cost.dependsOn);
+                let dependsOnTarget = this.targetResolvers.find((target) => target.name === cost.dependsOn);
                 dependsOnTarget.dependentCost = cost;
             }
         }
-        this.nonDependentTargets = this.targets.filter((target) => !target.properties.dependsOn);
+        this.nonDependentTargets = this.targetResolvers.filter((target) => !target.properties.dependsOn);
+        this.toStringName = properties.cardName
+            ? `'${properties.cardName} ability: ${this.title}'`
+            : `'Ability: ${this.title}'`;
+    }
+
+    toString() {
+        return this.toStringName;
     }
 
     buildCost(cost) {
@@ -56,26 +70,24 @@ class PlayerOrCardAbility {
         return cost;
     }
 
-    // UP NEXT: better naming and general clarification for the target construction pipeline
-    buildTargets(properties) {
-        this.targets = [];
-        if (properties.target) {
-            this.targets.push(this.getAbilityTarget('target', properties.target));
-        } else if (properties.targets) {
-            for (const key of Object.keys(properties.targets)) {
-                this.targets.push(this.getAbilityTarget(key, properties.targets[key]));
+    buildTargetResolvers(properties) {
+        this.targetResolvers = [];
+        if (properties.targetResolver) {
+            this.targetResolvers.push(this.buildTargetResolver('target', properties.targetResolver));
+        } else if (properties.targetResolvers) {
+            for (const key of Object.keys(properties.targetResolvers)) {
+                this.targetResolvers.push(this.buildTargetResolver(key, properties.targetResolvers[key]));
             }
         }
     }
 
-    // TODO: definition / interface for the properties object here
-    getAbilityTarget(name, properties) {
-        if (properties.gameSystem) {
-            if (!Array.isArray(properties.gameSystem)) {
-                properties.gameSystem = [properties.gameSystem];
+    buildTargetResolver(name, properties) {
+        if (properties.immediateEffect) {
+            if (!Array.isArray(properties.immediateEffect)) {
+                properties.immediateEffect = [properties.immediateEffect];
             }
         } else {
-            properties.gameSystem = [];
+            properties.immediateEffect = [];
         }
         if (properties.mode === TargetMode.Select) {
             return new AbilityTargetSelect(name, properties, this);
@@ -96,7 +108,7 @@ class PlayerOrCardAbility {
         if (!this.canPayCosts(context) && !ignoredRequirements.includes('cost')) {
             return 'cost';
         }
-        if (this.targets.length === 0) {
+        if (this.targetResolvers.length === 0) {
             if (this.gameSystem.length > 0 && !this.checkGameActionsForPotential(context)) {
                 return 'condition';
             }
@@ -123,7 +135,7 @@ class PlayerOrCardAbility {
     getCosts(context, playCosts = true, triggerCosts = true) {
         let costs = this.cost.map((a) => a);
         if (context.ignoreResourceCost) {
-            costs = costs.filter((cost) => !cost.isPrintedFateCost);
+            costs = costs.filter((cost) => !cost.isPrintedResourceCost);
         }
 
         if (!playCosts) {
@@ -136,8 +148,8 @@ class PlayerOrCardAbility {
         for (let cost of this.getCosts(context, results.playCosts, results.triggerCosts)) {
             context.game.queueSimpleStep(() => {
                 if (!results.cancelled) {
-                    if (cost.addEventsToArray) {
-                        cost.addEventsToArray(results.events, context, results);
+                    if (cost.generateEventsForAllTargets) {
+                        results.events.push(...cost.generateEventsForAllTargets(context, results));
                     } else {
                         if (cost.resolve) {
                             cost.resolve(context, results);
@@ -146,7 +158,7 @@ class PlayerOrCardAbility {
                             if (!results.cancelled) {
                                 let newEvents = cost.payEvent
                                     ? cost.payEvent(context)
-                                    : context.game.getEvent('payCost', {}, () => cost.pay(context));
+                                    : new GameEvent('payCost', {}, () => cost.pay(context));
                                 if (Array.isArray(newEvents)) {
                                     for (let event of newEvents) {
                                         results.events.push(event);
@@ -155,10 +167,10 @@ class PlayerOrCardAbility {
                                     results.events.push(newEvents);
                                 }
                             }
-                        });
+                        }, `Generate cost events for ${cost.gameSystem ? cost.gameSystem : cost.constructor.name} for ${this}`);
                     }
                 }
-            });
+            }, `Resolve cost '${cost.gameSystem ? cost.gameSystem : cost.constructor.name}' for ${this}`);
         }
     }
 
@@ -182,21 +194,21 @@ class PlayerOrCardAbility {
             payCostsFirst: false,
             delayTargeting: null
         };
-        for (let target of this.targets) {
-            context.game.queueSimpleStep(() => target.resolve(context, targetResults, passHandler));
+        for (let target of this.targetResolvers) {
+            context.game.queueSimpleStep(() => target.resolve(context, targetResults, passHandler), `Resolve target '${target.name}' for ${this}`);
         }
         return targetResults;
     }
 
     resolveRemainingTargets(context, nextTarget, passHandler = null) {
-        const index = this.targets.indexOf(nextTarget);
-        let targets = this.targets.slice();
+        const index = this.targetResolvers.indexOf(nextTarget);
+        let targets = this.targetResolvers.slice();
         if (targets.slice(0, index).every((target) => target.checkTarget(context))) {
             targets = targets.slice(index);
         }
         let targetResults = {};
         for (const target of targets) {
-            context.game.queueSimpleStep(() => target.resolve(context, targetResults, passHandler));
+            context.game.queueSimpleStep(() => target.resolve(context, targetResults, passHandler), `Resolve target '${target.name}' for ${this}`);
         }
         return targetResults;
     }
@@ -211,7 +223,7 @@ class PlayerOrCardAbility {
 
     hasTargetsChosenByInitiatingPlayer(context) {
         return (
-            this.targets.some((target) => target.hasTargetsChosenByInitiatingPlayer(context)) ||
+            this.targetResolvers.some((target) => target.hasTargetsChosenByInitiatingPlayer(context)) ||
             this.gameSystem.some((action) => action.hasTargetsChosenByInitiatingPlayer(context)) ||
             this.cost.some(
                 (cost) => cost.hasTargetsChosenByInitiatingPlayer && cost.hasTargetsChosenByInitiatingPlayer(context)
@@ -231,18 +243,21 @@ class PlayerOrCardAbility {
     executeHandler(context) {}
 
     isAction() {
-        return false;
+        return this.abilityType === AbilityType.Action;
     }
 
+    /** Indicates whether this ability is an ability represents a card being played */
     isCardPlayed() {
         return false;
     }
 
+    /** Indicates whether this ability is an ability from card text as opposed to other types of actions like playing a card */
     isCardAbility() {
         return false;
     }
 
-    isTriggeredAbility() {
+    /** Indicates whether this ability is an "activated" ability on a card, as opposed to a constant ability */
+    isActivatedAbility() {
         return false;
     }
 

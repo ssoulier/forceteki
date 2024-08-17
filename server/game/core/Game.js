@@ -1,9 +1,8 @@
-const _ = require('underscore');
 const EventEmitter = require('events');
 
 const ChatCommands = require('./chat/ChatCommands.js');
 const { GameChat } = require('./chat/GameChat.js');
-const { EffectEngine } = require('./effect/EffectEngine.js');
+const { OngoingEffectEngine } = require('./ongoingEffect/OngoingEffectEngine.js');
 const Player = require('./Player.js');
 const { Spectator } = require('../../Spectator.js');
 const { AnonymousSpectator } = require('../../AnonymousSpectator.js');
@@ -17,10 +16,10 @@ const HandlerMenuPrompt = require('./gameSteps/prompts/HandlerMenuPrompt.js');
 const SelectCardPrompt = require('./gameSteps/prompts/SelectCardPrompt.js');
 const GameWonPrompt = require('./gameSteps/prompts/GameWonPrompt.js');
 const GameSystems = require('../gameSystems/GameSystemLibrary.js');
-const { Event } = require('./event/Event.js');
+const { GameEvent } = require('./event/GameEvent.js');
 const InitiateCardAbilityEvent = require('./event/InitiateCardAbilityEvent.js');
 const EventWindow = require('./event/EventWindow.js');
-const AdditionalAbilityStepEventWindow = require('./event/AdditionalAbilityStepEventWindow.js');
+const ThenEventWindow = require('./event/ThenEventWindow.js');
 const InitiateAbilityEventWindow = require('./gameSteps/abilityWindow/InitiateAbilityEventWindow.js');
 const AbilityResolver = require('./gameSteps/AbilityResolver.js');
 const { SimultaneousEffectWindow } = require('./gameSteps/SimultaneousEffectWindow.js');
@@ -37,7 +36,7 @@ class Game extends EventEmitter {
     constructor(details, options = {}) {
         super();
 
-        this.effectEngine = new EffectEngine(this);
+        this.ongoingEffectEnginer = new OngoingEffectEngine(this);
         this.playersAndSpectators = {};
         this.gameChat = new GameChat();
         this.chatCommands = new ChatCommands(this);
@@ -58,7 +57,7 @@ class Game extends EventEmitter {
         this.currentAttack = null;
         this.manualMode = false;
         this.gameMode = details.gameMode;
-        this.currentPhase = '';
+        this.currentPhase = null;
         this.password = details.password;
         this.roundNumber = 0;
         this.initialFirstPlayer = null;
@@ -67,7 +66,7 @@ class Game extends EventEmitter {
 
         this.shortCardData = options.shortCardData || [];
 
-        _.each(details.players, (player) => {
+        details.players.forEach((player) => {
             this.playersAndSpectators[player.user.username] = new Player(
                 player.id,
                 player.user,
@@ -77,7 +76,7 @@ class Game extends EventEmitter {
             );
         });
 
-        _.each(details.spectators, (spectator) => {
+        details.spectators?.forEach((spectator) => {
             this.playersAndSpectators[spectator.user.username] = new Spectator(spectator.id, spectator.user);
         });
 
@@ -207,7 +206,7 @@ class Game extends EventEmitter {
      */
     rotateActivePlayer() {
         if (!this.actionPhaseActivePlayer.opponent.passedActionPhase) {
-            this.raiseEvent(
+            this.createEventAndOpenWindow(
                 EventName.OnPassActionPhasePriority,
                 { player: this.actionPhaseActivePlayer, actionWindow: this },
                 () => {
@@ -228,8 +227,7 @@ class Game extends EventEmitter {
      * @returns DrawCard
      */
     findAnyCardInPlayByUuid(cardId) {
-        return _.reduce(
-            this.getPlayers(),
+        return this.getPlayers().reduce(
             (card, player) => {
                 if (card) {
                     return card;
@@ -251,7 +249,7 @@ class Game extends EventEmitter {
 
     /**
      * Returns all cards from anywhere in the game matching the passed predicate
-     * @param {Function} predicate - card => Boolean
+     * @param {(value: any) => boolean} predicate - card => Boolean
      * @returns {Array} Array of DrawCard objects
      */
     findAnyCardsInAnyList(predicate) {
@@ -266,7 +264,7 @@ class Game extends EventEmitter {
     findAnyCardsInPlay(predicate) {
         var foundCards = [];
 
-        _.each(this.getPlayers(), (player) => {
+        this.getPlayers().forEach((player) => {
             foundCards = foundCards.concat(player.findCards(player.getCardsInPlay(), predicate));
         });
 
@@ -329,15 +327,15 @@ class Game extends EventEmitter {
     // }
 
     stopNonChessClocks() {
-        _.each(this.getPlayers(), (player) => player.stopNonChessClocks());
+        this.getPlayers().forEach((player) => player.stopNonChessClocks());
     }
 
     stopClocks() {
-        _.each(this.getPlayers(), (player) => player.stopClock());
+        this.getPlayers().forEach((player) => player.stopClock());
     }
 
     resetClocks() {
-        _.each(this.getPlayers(), (player) => player.resetClock());
+        this.getPlayers().forEach((player) => player.resetClock());
     }
 
     // TODO: parameter contract checks for this flow
@@ -363,14 +361,14 @@ class Game extends EventEmitter {
         this.pipeline.handleCardClicked(player, card);
     }
 
-    // TODO: implementation of this for smuggle
+    // TODO SMUGGLE: implementation of this
     // facedownCardClicked(playerName, location, controllerName, isProvince = false) {
     //     let player = this.getPlayerByName(playerName);
     //     let controller = this.getPlayerByName(controllerName);
     //     if (!player || !controller) {
     //         return;
     //     }
-    //     let list = controller.getSourceListForPile(location);
+    //     let list = controller.getCardPile(location);
     //     if (!list) {
     //         return;
     //     }
@@ -399,7 +397,7 @@ class Game extends EventEmitter {
     //     }
 
     //     MenuCommands.cardMenuClick(menuItem, this, player, card);
-    //     this.checkGameState(true);
+    //     this.resolveGameState(true);
     // }
 
     // /**
@@ -518,7 +516,7 @@ class Game extends EventEmitter {
 
     //     if (!this.isSpectator(player)) {
     //         if (this.chatCommands.executeCommand(player, args[0], args)) {
-    //             this.checkGameState(true);
+    //             this.resolveGameState(true);
     //             return;
     //         }
 
@@ -716,14 +714,11 @@ class Game extends EventEmitter {
             // }
         }
 
-        this.allCards = _(
-            _.reduce(
-                this.getPlayers(),
-                (cards, player) => {
-                    return cards.concat(player.preparedDeck.allCards);
-                },
-                []
-            )
+        this.allCards = this.getPlayers().reduce(
+            (cards, player) => {
+                return cards.concat(player.decklist.allCards);
+            },
+            []
         );
 
         // if (this.gameMode !== GameMode.Skirmish) {
@@ -752,7 +747,7 @@ class Game extends EventEmitter {
         //     }
         // }
 
-        this.pipeline.initialise([new SetupPhase(this), new SimpleStep(this, () => this.beginRound())]);
+        this.pipeline.initialise([new SetupPhase(this), new SimpleStep(this, () => this.beginRound(), 'beginRound')]);
 
         this.playStarted = true;
         this.startedAt = new Date();
@@ -767,15 +762,15 @@ class Game extends EventEmitter {
     beginRound() {
         this.roundNumber++;
         this.actionPhaseActivePlayer = this.initiativePlayer;
-        this.raiseEvent(EventName.OnBeginRound);
+        this.createEventAndOpenWindow(EventName.OnBeginRound);
         this.queueStep(new ActionPhase(this));
         this.queueStep(new RegroupPhase(this));
-        this.queueStep(new SimpleStep(this, () => this.roundEnded()));
-        this.queueStep(new SimpleStep(this, () => this.beginRound()));
+        this.queueSimpleStep(() => this.roundEnded(), 'roundEnded');
+        this.queueSimpleStep(() => this.beginRound(), 'beginRound');
     }
 
     roundEnded() {
-        this.raiseEvent(EventName.OnRoundEnded);
+        this.createEventAndOpenWindow(EventName.OnRoundEnded);
     }
 
     /*
@@ -788,14 +783,13 @@ class Game extends EventEmitter {
         return step;
     }
 
-    // TODO: use this everywhere or remove it
     /*
      * Creates a step which calls a handler function
      * @param {Function} handler - () => undefined
      * @returns {undefined}
      */
-    queueSimpleStep(handler) {
-        this.pipeline.queueStep(new SimpleStep(this, handler));
+    queueSimpleStep(handler, stepName) {
+        this.pipeline.queueStep(new SimpleStep(this, handler, stepName));
     }
 
     /*
@@ -822,26 +816,20 @@ class Game extends EventEmitter {
 
     openSimultaneousEffectWindow(choices) {
         let window = new SimultaneousEffectWindow(this);
-        _.each(choices, (choice) => window.addToWindow(choice));
+        choices.forEach((choice) => window.addToWindow(choice));
         this.queueStep(window);
     }
 
-    // TODO: this feels unnecessary
-    getEvent(eventName, params, handler) {
-        return new Event(eventName, params, handler);
-    }
-
-    // TODO: clearer naming here maybe
     /**
-     * Creates a game Event, and opens a window for it.
+     * Creates a game GameEvent, and opens a window for it.
      * @param {String} eventName
      * @param {Object} params - parameters for this event
-     * @param {Function} handler - (Event + params) => undefined
-     * returns {Event} - this allows the caller to track Event.resolved and
+     * @param {(GameEvent) => void} handler - (GameEvent + params) => undefined
+     * returns {GameEvent} - this allows the caller to track GameEvent.resolved and
      * tell whether or not the handler resolved successfully
      */
-    raiseEvent(eventName, params = {}, handler = () => true) {
-        let event = this.getEvent(eventName, params, handler);
+    createEventAndOpenWindow(eventName, params = {}, handler = () => true) {
+        let event = new GameEvent(eventName, params, handler);
         this.openEventWindow([event]);
         return event;
     }
@@ -852,7 +840,7 @@ class Game extends EventEmitter {
      * @param {Object} params - parameters for this event
      */
     emitEvent(eventName, params = {}) {
-        let event = this.getEvent(eventName, params);
+        let event = new GameEvent(eventName, params);
         this.emit(event.name, event);
     }
 
@@ -863,18 +851,18 @@ class Game extends EventEmitter {
      * @returns {EventWindow}
      */
     openEventWindow(events) {
-        if (!_.isArray(events)) {
+        if (!Array.isArray(events)) {
             events = [events];
         }
         return this.queueStep(new EventWindow(this, events));
     }
 
-    openAdditionalAbilityStepEventWindow(events) {
+    openThenEventWindow(events) {
         if (this.currentEventWindow) {
-            if (!_.isArray(events)) {
+            if (!Array.isArray(events)) {
                 events = [events];
             }
-            return this.queueStep(new AdditionalAbilityStepEventWindow(this, events));
+            return this.queueStep(new ThenEventWindow(this, events));
         }
         return this.openEventWindow(events);
     }
@@ -896,7 +884,7 @@ class Game extends EventEmitter {
      * @param {Array} eventProps
      */
     raiseMultipleInitiateAbilityEvents(eventProps) {
-        let events = _.map(eventProps, (event) => new InitiateCardAbilityEvent(event.params, event.handler));
+        let events = eventProps.map((event) => new InitiateCardAbilityEvent(event.params, event.handler));
         this.queueStep(new InitiateAbilityEventWindow(this, events));
     }
 
@@ -905,7 +893,7 @@ class Game extends EventEmitter {
     //  * cards, and performs it on all legal targets.
     //  * @param {AbilityContext} context
     //  * @param {Object} actions - Object with { actionName: targets }
-    //  * @returns {Event[]} - TODO: Change this?
+    //  * @returns {GameEvent[]}
     //  */
     // applyGameAction(context, actions) {
     //     if (!context) {
@@ -917,13 +905,12 @@ class Game extends EventEmitter {
     //         const gameActionFactory = GameSystems[action];
     //         if (typeof gameActionFactory === 'function') {
     //             const gameSystem = gameActionFactory({ target: cards });
-    //             gameSystem.addEventsToArray(array, context);
+    //             array.push(...gameSystem.generateEventsForAllTargets(context));
     //         }
     //         return array;
     //     }, []);
     //     if (events.length > 0) {
     //         this.openEventWindow(events);
-    //         this.queueSimpleStep(() => context.refill());
     //     }
     //     return events;
     // }
@@ -946,7 +933,7 @@ class Game extends EventEmitter {
 
     // updateCurrentConflict(conflict) {
     //     this.currentConflict = conflict;
-    //     this.checkGameState(true);
+    //     this.resolveGameState(true);
     // }
 
     // /**
@@ -958,7 +945,7 @@ class Game extends EventEmitter {
     // takeControl(player, card) {
     //     if (
     //         card.controller === player ||
-    //         !card.checkRestrictions(EffectName.TakeControl, this.getFrameworkContext())
+    //         card.hasRestriction(EffectName.TakeControl, this.getFrameworkContext())
     //     ) {
     //         return;
     //     }
@@ -977,7 +964,7 @@ class Game extends EventEmitter {
     //         }
     //     }
     //     card.updateEffectContexts();
-    //     this.checkGameState(true);
+    //     this.resolveGameState(true);
     // }
 
     watch(socketId, user) {
@@ -1076,11 +1063,10 @@ class Game extends EventEmitter {
         this.addMessage('{0} has reconnected', player);
     }
 
-    // UP NEXT: rename this to something that makes it clearer that it's needed for updating effect state
-    checkGameState(hasChanged = false, events = []) {
+    resolveGameState(hasChanged = false, events = []) {
         // check for a game state change (recalculating attack stats if necessary)
         if (
-            (!this.currentAttack && this.effectEngine.checkEffects(hasChanged)) ||
+            (!this.currentAttack && this.ongoingEffectEnginer.resolveEffects(hasChanged)) ||
             (this.currentAttack && this.currentAttack.calculateSkill(hasChanged)) ||
             hasChanged
         ) {
@@ -1098,7 +1084,7 @@ class Game extends EventEmitter {
         }
         if (events.length > 0) {
             // check for any delayed effects which need to fire
-            this.effectEngine.checkDelayedEffects(events);
+            this.ongoingEffectEnginer.checkDelayedEffects(events);
         }
     }
 
