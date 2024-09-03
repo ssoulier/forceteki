@@ -10,8 +10,7 @@ import AbilityHelper from '../../AbilityHelper';
 import * as Helpers from '../utils/Helpers';
 import { AbilityContext } from '../ability/AbilityContext';
 import CardAbility from '../ability/CardAbility';
-import type Shield from '../../cardImplementations/01_SOR/Shield';
-import type Experience from '../../cardImplementations/01_SOR/Experience';
+import type Shield from '../../cards/01_SOR/Shield';
 import { KeywordInstance } from '../ability/KeywordInstance';
 import * as KeywordHelpers from '../ability/KeywordHelpers';
 
@@ -186,7 +185,7 @@ export class Card extends OngoingEffectSource {
         if (implementationId) {
             if (cardData.id !== implementationId.id || cardData.internalName !== implementationId.internalName) {
                 throw new Error(
-                    `Implementation { ${implementationId.id}, ${implementationId.internalName} } does not match provided card data { ${cardData.id}, ${cardData.internalName} }`
+                    `Provided card data { ${cardData.id}, ${cardData.internalName} } does not match the data from the card class: { ${implementationId.id}, ${implementationId.internalName} }. Confirm that you are matching the card data to the right card implementation class.`
                 );
             }
         }

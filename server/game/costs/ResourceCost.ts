@@ -3,7 +3,7 @@ import { EventName, Location, RelativePlayer } from '../core/Constants';
 import type { ICost, Result } from '../core/cost/ICost';
 import { GameEvent } from '../core/event/GameEvent';
 
-export class AdjustableResourceCost implements ICost {
+export class ResourceCost implements ICost {
     public isPlayCost = true;
     public isPrintedResourceCost = true;
 

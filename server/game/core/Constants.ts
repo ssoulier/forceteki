@@ -18,7 +18,7 @@ export enum WildcardLocation {
     Any = 'any',
     AnyArena = 'any arena',
 
-    // TODO: better name for this?
+    /** Any location that is a valid attack target - an arena or base zone */
     AnyAttackable = 'any attackable'
 }
 
@@ -86,7 +86,7 @@ export enum Duration {
 
 export enum Stage {
     Cost = 'cost',
-    EffectTmp = 'effect',
+    Effect = 'effect',
     PreTarget = 'preTarget',
     Target = 'target'
 }
@@ -133,7 +133,9 @@ export enum WildcardCardType {
     Any = 'any',
     NonLeaderUnit = 'nonLeaderUnit',
     Token = 'token',
+    /** Any unit type, including leader and token units */
     Unit = 'unit',
+    /** Any upgrade type, including token upgrades */
     Upgrade = 'upgrade',
 }
 
@@ -226,6 +228,15 @@ export enum KeywordName {
     /** @deprecated Not implemented yet */
     Smuggle = 'smuggle',
 }
+
+/** List of keywords that don't have any additional parameters */
+export type NonParameterKeywordName =
+    | KeywordName.Ambush
+    | KeywordName.Grit
+    | KeywordName.Overwhelm
+    | KeywordName.Saboteur
+    | KeywordName.Sentinel
+    | KeywordName.Shielded;
 
 export enum Trait {
     Armor = 'armor',
