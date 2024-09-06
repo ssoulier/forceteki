@@ -1,6 +1,6 @@
-import { IConstantAbilityProps, IReplacementEffectAbilityProps, ITriggeredAbilityProps } from '../../../Interfaces';
+import { IActionAbilityProps, IConstantAbilityProps, IReplacementEffectAbilityProps, ITriggeredAbilityProps } from '../../../Interfaces';
 import TriggeredAbility from '../../ability/TriggeredAbility';
-import { AbilityRestriction, AbilityType, Arena, CardType, Duration, EventName, Location, LocationFilter, WildcardLocation } from '../../Constants';
+import { AbilityType, CardType, Duration, EventName, Location, LocationFilter, WildcardLocation } from '../../Constants';
 import { IConstantAbility } from '../../ongoingEffect/IConstantAbility';
 import Player from '../../Player';
 import * as EnumHelpers from '../../utils/EnumHelpers';
@@ -20,8 +20,8 @@ export type InPlayCardConstructor = new (...args: any[]) => InPlayCard;
  * 2. The ability to be defeated as an overridable method
  */
 export class InPlayCard extends PlayableOrDeployableCard {
-    protected _triggeredAbilities: TriggeredAbility[] = [];
-    protected _constantAbilities: IConstantAbility[] = [];
+    protected constantAbilities: IConstantAbility[] = [];
+    protected triggeredAbilities: TriggeredAbility[] = [];
 
     private _enteredPlayThisRound?: boolean = null;
 
@@ -36,8 +36,6 @@ export class InPlayCard extends PlayableOrDeployableCard {
 
         // this class is for all card types other than Base and Event (Base is checked in the superclass constructor)
         Contract.assertFalse(this.printedType === CardType.Event);
-
-        this.activateAbilityInitializersForTypes([AbilityType.Constant, AbilityType.Triggered]);
     }
 
 
@@ -48,7 +46,7 @@ export class InPlayCard extends PlayableOrDeployableCard {
      */
     public getConstantAbilities(): IConstantAbility[] {
         return this.isBlank() ? []
-            : this._constantAbilities
+            : this.constantAbilities
                 .concat(this.getGainedAbilityEffects<IConstantAbility>(AbilityType.Constant));
     }
 
@@ -59,72 +57,53 @@ export class InPlayCard extends PlayableOrDeployableCard {
      */
     public getTriggeredAbilities(): TriggeredAbility[] {
         return this.isBlank() ? []
-            : this._triggeredAbilities
+            : this.triggeredAbilities
                 .concat(this.getGainedAbilityEffects<TriggeredAbility>(AbilityType.Triggered));
     }
 
-    public override canRegisterConstantAbilities(): boolean {
+    public override canRegisterConstantAbilities(): this is InPlayCard {
         return true;
     }
 
-    public override canRegisterTriggeredAbilities(): boolean {
+    public override canRegisterTriggeredAbilities(): this is InPlayCard {
         return true;
     }
 
 
     // ********************************************* ABILITY SETUP *********************************************
+    protected addActionAbility(properties: IActionAbilityProps<this>) {
+        this.actionAbilities.push(this.createActionAbility(properties));
+    }
+
     protected addConstantAbility(properties: IConstantAbilityProps<this>): void {
-        const allowedLocationFilters = [
-            WildcardLocation.Any,
-            Location.Discard,
-            WildcardLocation.AnyArena,
-            Location.Leader,
-            Location.Base,
-        ];
-
-        const sourceLocationFilter = properties.sourceLocationFilter || WildcardLocation.AnyArena;
-
-        let notAllowedLocations: LocationFilter[];
-        if (Array.isArray(sourceLocationFilter)) {
-            notAllowedLocations = allowedLocationFilters.filter((location) => sourceLocationFilter.includes(location));
-        } else {
-            notAllowedLocations = allowedLocationFilters.includes(sourceLocationFilter) ? [] : [sourceLocationFilter];
-        }
-
-        if (notAllowedLocations.length > 0) {
-            throw new Error(`Illegal effect location(s) specified: '${notAllowedLocations.join(', ')}'`);
-        }
-        properties.cardName = this.title;
-
-        this.abilityInitializers.push({
-            abilityType: AbilityType.Constant,
-            initialize: () => this._constantAbilities.push({ duration: Duration.Persistent, sourceLocationFilter, ...properties })
-        });
+        this.constantAbilities.push(this.createConstantAbility(properties));
     }
 
     protected addReplacementEffectAbility(properties: IReplacementEffectAbilityProps): void {
         // for initialization and tracking purposes, a ReplacementEffect is basically a Triggered ability
-        this.abilityInitializers.push({
-            abilityType: AbilityType.Triggered,
-            initialize: () => this._triggeredAbilities.push(this.createReplacementEffectAbility(properties))
-        });
-    }
-
-    private createReplacementEffectAbility(properties: IReplacementEffectAbilityProps): ReplacementEffectAbility {
-        properties.cardName = this.title;
-        return new ReplacementEffectAbility(this.game, this, properties);
+        this.triggeredAbilities.push(this.createReplacementEffectAbility(properties));
     }
 
     protected addTriggeredAbility(properties: ITriggeredAbilityProps): void {
-        this.abilityInitializers.push({
-            abilityType: AbilityType.Triggered,
-            initialize: () => this._triggeredAbilities.push(this.createTriggeredAbility(properties))
-        });
+        this.triggeredAbilities.push(this.createTriggeredAbility(properties));
     }
 
     protected addWhenPlayedAbility(properties: Omit<ITriggeredAbilityProps, 'when' | 'aggregateWhen'>): void {
         const triggeredProperties = Object.assign(properties, { when: { onCardPlayed: (event, context) => event.card === context.source } });
         this.addTriggeredAbility(triggeredProperties);
+    }
+
+    public createConstantAbility(properties: IConstantAbilityProps<this>): IConstantAbility {
+        properties.cardName = this.title;
+
+        const sourceLocationFilter = properties.sourceLocationFilter || WildcardLocation.AnyArena;
+
+        return { duration: Duration.Persistent, sourceLocationFilter, ...properties };
+    }
+
+    public createReplacementEffectAbility(properties: IReplacementEffectAbilityProps): ReplacementEffectAbility {
+        properties.cardName = this.title;
+        return new ReplacementEffectAbility(this.game, this, properties);
     }
 
     public createTriggeredAbility(properties: ITriggeredAbilityProps): TriggeredAbility {
@@ -134,9 +113,6 @@ export class InPlayCard extends PlayableOrDeployableCard {
 
 
     // ******************************************** PLAY / DEFEAT MANAGEMENT ********************************************
-    // TODO LEADER: TODO TOKEN: add custom defeat logic here. figure out how it should interact with player.defeatCard()
-    // and the DefeatCardSystem
-
     private resetEnteredPlayThisRound() {
         // if the value is null, the card is no longer in play
         if (this._enteredPlayThisRound !== null) {
@@ -147,7 +123,7 @@ export class InPlayCard extends PlayableOrDeployableCard {
     // ******************************************** ABILITY STATE MANAGEMENT ********************************************
     /** Update the context of each constant ability. Used when the card's controller has changed. */
     public updateConstantAbilityContexts() {
-        for (const constantAbility of this._constantAbilities) {
+        for (const constantAbility of this.constantAbilities) {
             if (constantAbility.registeredEffects) {
                 for (const effect of constantAbility.registeredEffects) {
                     effect.refreshContext();
@@ -176,7 +152,7 @@ export class InPlayCard extends PlayableOrDeployableCard {
         // TODO CAPTURE: does being captured and then freed in the same turn reset any ability limits?
         this.resetLimits();
 
-        for (const triggeredAbility of this._triggeredAbilities) {
+        for (const triggeredAbility of this.triggeredAbilities) {
             if (this.isEvent()) {
                 // TODO EVENTS: this block is here because jigoku would would register a 'bluff' triggered ability window in the UI, do we still need that?
                 // normal event abilities have their own category so this is the only 'triggered ability' for event cards
@@ -197,6 +173,7 @@ export class InPlayCard extends PlayableOrDeployableCard {
         }
     }
 
+    /** Register / un-register the effect registrations for any constant abilities */
     private updateConstantAbilityEffects(from: Location, to: Location) {
         // removing any lasting effects from ourself
         if (!EnumHelpers.isArena(from) && !EnumHelpers.isArena(to)) {
@@ -204,7 +181,7 @@ export class InPlayCard extends PlayableOrDeployableCard {
         }
 
         // check to register / unregister any effects that we are the source of
-        for (const constantAbility of this._constantAbilities) {
+        for (const constantAbility of this.constantAbilities) {
             if (constantAbility.sourceLocationFilter === WildcardLocation.Any) {
                 continue;
             }
@@ -226,7 +203,7 @@ export class InPlayCard extends PlayableOrDeployableCard {
     protected override resetLimits() {
         super.resetLimits();
 
-        for (const triggeredAbility of this._triggeredAbilities) {
+        for (const triggeredAbility of this.triggeredAbilities) {
             if (triggeredAbility.limit) {
                 triggeredAbility.limit.reset();
             }
