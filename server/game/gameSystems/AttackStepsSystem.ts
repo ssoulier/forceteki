@@ -1,5 +1,5 @@
 import type { AbilityContext } from '../core/ability/AbilityContext';
-import { AbilityRestriction, CardType, CardTypeFilter, EventName, KeywordName, Location, WildcardCardType, WildcardLocation } from '../core/Constants';
+import { AbilityRestriction, CardType, CardTypeFilter, Duration, EventName, KeywordName, Location, WildcardCardType, WildcardLocation } from '../core/Constants';
 import * as EnumHelpers from '../core/utils/EnumHelpers';
 import { Attack } from '../core/attack/Attack';
 import { EffectName } from '../core/Constants';
@@ -10,11 +10,17 @@ import { damage } from './GameSystemLibrary.js';
 import type { Card } from '../core/card/Card';
 import { isArray } from 'underscore';
 import { GameEvent } from '../core/event/GameEvent';
-import { ILastingEffectCardProperties, LastingEffectCardSystem } from './LastingEffectCardSystem';
+import { ICardLastingEffectProperties, CardLastingEffectSystem } from './CardLastingEffectSystem';
 import Contract from '../core/utils/Contract';
 import { CardWithDamageProperty, UnitCard } from '../core/card/CardTypes';
+import * as Helpers from '../core/utils/Helpers';
 
-export type IAttackLastingEffectCardProperties = Omit<ILastingEffectCardProperties, 'duration'>;
+export interface IAttackLastingEffectProperties {
+    condition?: (attack: Attack, context: AbilityContext) => boolean;
+    effect?: any;
+}
+
+type IAttackLastingEffectPropertiesOrFactory = IAttackLastingEffectProperties | ((context: AbilityContext, attack: Attack) => IAttackLastingEffectProperties);
 
 export interface IAttackProperties extends ICardTargetSystemProperties {
     attacker?: Card;
@@ -24,11 +30,17 @@ export interface IAttackProperties extends ICardTargetSystemProperties {
     costHandler?: (context: AbilityContext, prompt: any) => void;
 
     /**
-     * Effects to trigger for the duration of the attack. Can be one or more {@link ILastingEffectCardProperties}
+     * Effects to apply to the attacker for the duration of the attack. Can be one or more {@link IAttackLastingEffectProperties}
      * or a function generator(s) for them.
      */
-    effects?: IAttackLastingEffectCardProperties | ((context: AbilityContext, attack: Attack) => IAttackLastingEffectCardProperties) |
-        (IAttackLastingEffectCardProperties | ((context: AbilityContext, attack: Attack) => IAttackLastingEffectCardProperties))[]
+    attackerLastingEffects?: IAttackLastingEffectPropertiesOrFactory | IAttackLastingEffectPropertiesOrFactory[];
+
+    // TODO: allow declaring multiple attackers (new Maul)
+    /**
+     * Effects to apply to the attacker for the duration of the attack. Can be one or more {@link IAttackLastingEffectProperties}
+     * or a function generator(s) for them.
+     */
+    defenderLastingEffects?: IAttackLastingEffectPropertiesOrFactory | IAttackLastingEffectPropertiesOrFactory[];
 }
 
 /**
@@ -215,24 +227,40 @@ export class AttackStepsSystem extends CardTargetSystem<IAttackProperties> {
     // in case we have have a situation when multiple attacks are happening in parallel but an effect
     // only applies to one of them.
     private registerAttackEffects(context: AbilityContext, properties: IAttackProperties, attack: Attack) {
-        if (!properties.effects) {
-            return;
-        }
-
-        let effects = properties.effects;
-        if (!isArray(effects)) {
-            effects = [effects];
-        }
-
         // create events for all effects to be generated
         const effectEvents: GameEvent[] = [];
-        for (const effect of effects) {
-            const effectProperties = typeof effect === 'function' ? effect(context, attack) : effect;
+        const effectsRegistered =
+            this.queueCreateLastingEffectsGameSteps(Helpers.asArray(properties.attackerLastingEffects), attack.attacker, context, attack, effectEvents) ||
+            this.queueCreateLastingEffectsGameSteps(Helpers.asArray(properties.defenderLastingEffects), attack.target, context, attack, effectEvents);
 
-            const effectSystem = new LastingEffectCardSystem(effectProperties);
+        if (effectsRegistered) {
+            context.game.queueSimpleStep(() => context.game.openEventWindow(effectEvents), 'open event window for attack effects');
+        }
+    }
+
+    /** @returns True if attack lasting effects were registered, false otherwise */
+    private queueCreateLastingEffectsGameSteps(
+        lastingEffects: IAttackLastingEffectPropertiesOrFactory[],
+        target: Card,
+        context: AbilityContext,
+        attack: Attack,
+        effectEvents: GameEvent[]
+    ): boolean {
+        if (lastingEffects == null || (Array.isArray(lastingEffects) && lastingEffects.length === 0)) {
+            return false;
+        }
+
+        for (const lastingEffect of lastingEffects) {
+            const lastingEffectProperties = typeof lastingEffect === 'function' ? lastingEffect(context, attack) : lastingEffect;
+
+            const effectSystem = new CardLastingEffectSystem(Object.assign({}, lastingEffectProperties, {
+                duration: Duration.UntilEndOfAttack,
+                target: target,
+                condition: lastingEffectProperties.condition == null ? null : (context: AbilityContext) => lastingEffectProperties.condition(attack, context)
+            }));
             effectSystem.queueGenerateEventGameSteps(effectEvents, context);
         }
 
-        context.game.queueSimpleStep(() => context.game.openEventWindow(effectEvents), 'open event window for attack effects');
+        return true;
     }
 }
