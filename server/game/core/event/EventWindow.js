@@ -42,7 +42,7 @@ class EventWindow extends BaseStepWithPipeline {
             new SimpleStep(this.game, () => this.setCurrentEventWindow(), 'setCurrentEventWindow'),
             new SimpleStep(this.game, () => this.checkEventCondition(), 'checkEventCondition'),
             new SimpleStep(this.game, () => this.openReplacementEffectWindow(), 'openReplacementEffectWindow'),
-            new SimpleStep(this.game, () => this.createContingentEvents(), 'createContingentEvents'),
+            new SimpleStep(this.game, () => this.generateContingentEvents(), 'generateContingentEvents'),
             new SimpleStep(this.game, () => this.preResolutionEffects(), 'preResolutionEffects'),
             new SimpleStep(this.game, () => this.executeHandler(), 'executeHandler'),
             new SimpleStep(this.game, () => this.resolveGameState(), 'resolveGameState'),
@@ -111,10 +111,10 @@ class EventWindow extends BaseStepWithPipeline {
      * but will be resolved after it in order. The main use case for this is upgrades being
      * defeated at the same time as the parent card holding them.
      */
-    createContingentEvents() {
+    generateContingentEvents() {
         let contingentEvents = [];
         this.events.forEach((event) => {
-            contingentEvents = contingentEvents.concat(event.createContingentEvents());
+            contingentEvents = contingentEvents.concat(event.generateContingentEvents());
         });
         contingentEvents.forEach((event) => this.addEvent(event));
     }

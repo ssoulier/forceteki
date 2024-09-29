@@ -40,7 +40,7 @@ export class BaseCard extends BaseCardParent {
     }
 
     public setEpicActionAbility(properties: IEpicActionProps<this>): void {
-        Contract.assertTrue(this._epicActionAbility == null, 'Epic action ability already set');
+        Contract.assertIsNullLike(this._epicActionAbility, 'Epic action ability already set');
 
         const propertiesWithLimit: IActionAbilityProps<this> = Object.assign(properties, {
             limit: AbilityHelper.limit.epicAction()
