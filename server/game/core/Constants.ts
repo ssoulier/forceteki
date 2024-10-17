@@ -135,6 +135,8 @@ export enum CardType {
 export enum WildcardCardType {
     Any = 'any',
     NonLeaderUnit = 'nonLeaderUnit',
+    /** Any card type that can be played from hand */
+    Playable = 'playable',
     Token = 'token',
 
     /** Any unit type, including leader and token units */
