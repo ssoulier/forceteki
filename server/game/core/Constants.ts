@@ -241,8 +241,6 @@ export enum Aspect {
 
 export enum KeywordName {
     Ambush = 'ambush',
-
-    /** @deprecated Not implemented yet */
     Bounty = 'bounty',
     Grit = 'grit',
     Overwhelm = 'overwhelm',
