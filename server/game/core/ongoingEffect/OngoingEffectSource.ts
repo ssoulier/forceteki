@@ -1,7 +1,7 @@
 import AbilityHelper from '../../AbilityHelper';
 import { GameObject } from '../GameObject.js';
 
-import { Duration, WildcardLocation } from '../Constants.js';
+import { Duration, WildcardZoneName } from '../Constants.js';
 import { OngoingEffect } from './OngoingEffect';
 
 // This class is inherited by Card and also represents Framework effects
@@ -16,7 +16,7 @@ export class OngoingEffectSource extends GameObject {
      */
     public untilEndOfPhase(propertyFactory) {
         const properties = propertyFactory(AbilityHelper);
-        this.addEffectToEngine(Object.assign({ duration: Duration.UntilEndOfPhase, locationFilter: WildcardLocation.Any }, properties));
+        this.addEffectToEngine(Object.assign({ duration: Duration.UntilEndOfPhase, zoneFilter: WildcardZoneName.Any }, properties));
     }
 
     /**
@@ -24,7 +24,7 @@ export class OngoingEffectSource extends GameObject {
      */
     public untilEndOfRound(propertyFactory) {
         const properties = propertyFactory(AbilityHelper);
-        this.addEffectToEngine(Object.assign({ duration: Duration.UntilEndOfRound, locationFilter: WildcardLocation.Any }, properties));
+        this.addEffectToEngine(Object.assign({ duration: Duration.UntilEndOfRound, zoneFilter: WildcardZoneName.Any }, properties));
     }
 
     /**
@@ -32,7 +32,7 @@ export class OngoingEffectSource extends GameObject {
      */
     public lastingEffect(propertyFactory) {
         const properties = propertyFactory(AbilityHelper);
-        this.addEffectToEngine(Object.assign({ duration: Duration.Custom, locationFilter: WildcardLocation.Any }, properties));
+        this.addEffectToEngine(Object.assign({ duration: Duration.Custom, zoneFilter: WildcardZoneName.Any }, properties));
     }
 
     /**

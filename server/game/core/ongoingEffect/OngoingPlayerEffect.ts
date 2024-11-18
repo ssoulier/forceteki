@@ -1,5 +1,5 @@
 import { OngoingEffect } from './OngoingEffect';
-import { RelativePlayer } from '../Constants';
+import { RelativePlayer, RelativePlayerFilter, WildcardRelativePlayer } from '../Constants';
 import { OngoingEffectImpl } from './effectImpl/OngoingEffectImpl';
 import Game from '../Game';
 import { Card } from '../card/Card';
@@ -8,7 +8,7 @@ import Player from '../Player';
 
 export class OngoingPlayerEffect extends OngoingEffect {
     public override matchTarget: (target: Player) => boolean;
-    public targetController: Player | RelativePlayer;
+    public targetController: Player | RelativePlayerFilter;
 
     public constructor(game: Game, source: Card, properties: IOngoingPlayerEffectProps, effect: OngoingEffectImpl<any>) {
         super(game, source, properties, effect);
@@ -21,7 +21,7 @@ export class OngoingPlayerEffect extends OngoingEffect {
 
     /** @override */
     public override isValidTarget(target: Player) {
-        if (this.targetController !== RelativePlayer.Any && this.targetController !== RelativePlayer.Self && this.targetController !== RelativePlayer.Opponent && this.targetController !== target) {
+        if (this.targetController !== WildcardRelativePlayer.Any && this.targetController !== RelativePlayer.Self && this.targetController !== RelativePlayer.Opponent && this.targetController !== target) {
             return false;
         }
 

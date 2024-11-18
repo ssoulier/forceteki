@@ -1,5 +1,5 @@
 import { OngoingEffect } from './OngoingEffect';
-import { RelativePlayer, WildcardLocation, WildcardCardType, CardTypeFilter, LocationFilter, relativePlayerValues } from '../Constants';
+import { RelativePlayer, WildcardZoneName, WildcardCardType, CardTypeFilter, ZoneFilter } from '../Constants';
 import * as EnumHelpers from '../utils/EnumHelpers';
 import * as Contract from '../utils/Contract';
 import * as Helpers from '../utils/Helpers';
@@ -11,7 +11,7 @@ import { AbilityContext } from '../ability/AbilityContext';
 
 export class OngoingCardEffect extends OngoingEffect {
     public readonly targetsSourceOnly: boolean;
-    public readonly targetLocationFilter: LocationFilter;
+    public readonly targetZoneFilter: ZoneFilter;
     public readonly targetCardTypeFilter: CardTypeFilter[];
     public readonly targetController: RelativePlayer;
     public override matchTarget: Card | ((target: Card, context: AbilityContext) => boolean);
@@ -21,7 +21,7 @@ export class OngoingCardEffect extends OngoingEffect {
 
         if (!properties.matchTarget) {
             // if there are no filters provided, effect only targets the source card
-            if (!properties.targetLocationFilter && !properties.targetCardTypeFilter && !properties.targetController) {
+            if (!properties.targetZoneFilter && !properties.targetCardTypeFilter && !properties.targetController) {
                 this.targetsSourceOnly = true;
                 return;
             }
@@ -29,18 +29,18 @@ export class OngoingCardEffect extends OngoingEffect {
 
         this.targetsSourceOnly = false;
         this.targetController = properties.targetController || RelativePlayer.Self;
-        Contract.assertArrayIncludes(relativePlayerValues, this.targetController, 'target controller must be a RelativePlayer enum.');
+        Contract.assertFalse(typeof this.targetController === 'object', 'target controller must be a RelativePlayer enum.');
 
-        if (!properties.targetLocationFilter) {
-            this.targetLocationFilter = properties.sourceLocationFilter === WildcardLocation.Any
-                ? WildcardLocation.Any
-                : WildcardLocation.AnyArena;
+        if (!properties.targetZoneFilter) {
+            this.targetZoneFilter = properties.sourceZoneFilter === WildcardZoneName.Any
+                ? WildcardZoneName.Any
+                : WildcardZoneName.AnyArena;
         } else {
-            this.targetLocationFilter = properties.targetLocationFilter;
+            this.targetZoneFilter = properties.targetZoneFilter;
         }
 
         // TODO: rework getTargets() so that we can provide an array while still not searching all cards in the game every time
-        Contract.assertFalse(Array.isArray(properties.targetLocationFilter), 'Target location filter for an effect definition cannot be an array');
+        Contract.assertFalse(Array.isArray(properties.targetZoneFilter), 'Target zone filter for an effect definition cannot be an array');
 
         this.targetCardTypeFilter = properties.targetCardTypeFilter ? Helpers.asArray(properties.targetCardTypeFilter) : [WildcardCardType.Unit];
     }
@@ -63,7 +63,7 @@ export class OngoingCardEffect extends OngoingEffect {
         return (
             (this.targetController !== RelativePlayer.Self || target.controller === this.source.controller) &&
             (this.targetController !== RelativePlayer.Opponent || target.controller !== this.source.controller) &&
-            EnumHelpers.cardLocationMatches(target.location, this.targetLocationFilter) &&
+            EnumHelpers.cardZoneMatches(target.zoneName, this.targetZoneFilter) &&
             EnumHelpers.cardTypeMatches(target.type, this.targetCardTypeFilter) &&
             this.matchTarget(target, this.context)
         );
@@ -73,9 +73,9 @@ export class OngoingCardEffect extends OngoingEffect {
     public override getTargets() {
         if (this.targetsSourceOnly) {
             return [this.context.source];
-        } else if (this.targetLocationFilter === WildcardLocation.Any) {
+        } else if (this.targetZoneFilter === WildcardZoneName.Any) {
             return this.game.allCards;
-        } else if (EnumHelpers.isArena(this.targetLocationFilter)) {
+        } else if (EnumHelpers.isArena(this.targetZoneFilter)) {
             return this.game.findAnyCardsInPlay();
         }
         return this.game.allCards;

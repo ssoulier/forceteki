@@ -1,6 +1,6 @@
 import AbilityHelper from '../../../AbilityHelper';
 import { EventCard } from '../../../core/card/EventCard';
-import { RelativePlayer, Trait, WildcardCardType } from '../../../core/Constants';
+import { Trait, WildcardCardType, WildcardRelativePlayer } from '../../../core/Constants';
 
 export default class ItBindsAllThings extends EventCard {
     protected override getImplementationId () {
@@ -15,7 +15,7 @@ export default class ItBindsAllThings extends EventCard {
             title: 'Heal up to 3 damage from a unit.',
             immediateEffect: AbilityHelper.immediateEffects.distributeHealingAmong({
                 amountToDistribute: 3,
-                controller: RelativePlayer.Any,
+                controller: WildcardRelativePlayer.Any,
                 canChooseNoTargets: true,
                 cardTypeFilter: WildcardCardType.Unit,
                 maxTargets: 1,
