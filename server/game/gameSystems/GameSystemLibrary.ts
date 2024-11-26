@@ -4,6 +4,7 @@ import { ZoneName, DeckZoneDestination, PlayType } from '../core/Constants';
 
 // import { AddTokenAction, AddTokenProperties } from './AddTokenAction';
 import { AttachUpgradeSystem, IAttachUpgradeProperties } from './AttachUpgradeSystem';
+import { CaptureSystem, ICaptureProperties } from './CaptureSystem';
 import { CardLastingEffectSystem, ICardLastingEffectProperties } from './CardLastingEffectSystem';
 import { CardPhaseLastingEffectSystem, ICardPhaseLastingEffectProperties } from './CardPhaseLastingEffectSystem';
 import { CardTargetSystem, ICardTargetSystemProperties } from '../core/gameSystem/CardTargetSystem';
@@ -74,6 +75,7 @@ import { DiscardCardsFromHand, IDiscardCardsFromHandProperties } from './Discard
 import { DiscardEntireHandSystem, IDiscardEntireHandSystemProperties } from './DiscardEntireHandSystem';
 import { AggregateSystem, ISystemArrayOrFactory } from '../core/gameSystem/AggregateSystem';
 import { CardAttackLastingEffectSystem, ICardAttackLastingEffectProperties } from './CardAttackLastingEffectSystem';
+import { IRescueProperties, RescueSystem } from './RescueSystem';
 import { ITakeControlProperties, TakeControlOfUnitSystem } from './TakeControlOfUnitSystem';
 // import { TakeControlAction, TakeControlProperties } from './TakeControlAction';
 // import { TriggerAbilityAction, TriggerAbilityProperties } from './TriggerAbilityAction';
@@ -95,6 +97,9 @@ export function attachUpgrade<TContext extends AbilityContext = AbilityContext>(
 }
 export function attack<TContext extends AbilityContext = AbilityContext>(propertyFactory: PropsFactory<IInitiateAttackProperties, TContext> = {}): CardTargetSystem<TContext> {
     return new InitiateAttackSystem<TContext>(propertyFactory);
+}
+export function capture<TContext extends AbilityContext = AbilityContext>(propertyFactory: PropsFactory<ICaptureProperties, TContext> = {}): GameSystem<TContext> {
+    return new CaptureSystem<TContext>(propertyFactory);
 }
 export function cardLastingEffect<TContext extends AbilityContext = AbilityContext>(propertyFactory: PropsFactory<ICardLastingEffectProperties, TContext>): GameSystem<TContext> {
     return new CardLastingEffectSystem<TContext>(propertyFactory);
@@ -225,6 +230,9 @@ export function putIntoPlay<TContext extends AbilityContext = AbilityContext>(pr
 // }
 export function ready<TContext extends AbilityContext = AbilityContext>(propertyFactory: PropsFactory<IReadySystemProperties, TContext> = {}) {
     return new ReadySystem<TContext>(propertyFactory);
+}
+export function rescue<TContext extends AbilityContext = AbilityContext>(propertyFactory: PropsFactory<IRescueProperties, TContext> = {}) {
+    return new RescueSystem<TContext>(propertyFactory);
 }
 
 /**
