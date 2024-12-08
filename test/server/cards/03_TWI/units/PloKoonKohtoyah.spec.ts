@@ -9,7 +9,7 @@ describe('Plo Koon Kohtoyah', function () {
                         groundArena: ['obiwan-kenobi#following-fate', 'luke-skywalker#jedi-knight'],
                     },
                     player2: {
-                        groundArena: ['wampa'],
+                        groundArena: ['consular-security-force'],
                     }
                 });
 
@@ -17,8 +17,8 @@ describe('Plo Koon Kohtoyah', function () {
 
                 context.player1.clickCard(context.ploKoon);
                 context.player1.clickPrompt('Ambush');
-                expect(context.wampa).toBeInZone('discard');
-                expect(context.ploKoon.damage).toBe(4);
+                expect(context.consularSecurityForce.damage).toBe(6);
+                expect(context.ploKoon.damage).toBe(3);
                 expect(context.ploKoon.exhausted).toBeTrue();
             });
 
