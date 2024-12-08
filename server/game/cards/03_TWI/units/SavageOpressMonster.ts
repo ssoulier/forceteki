@@ -13,7 +13,7 @@ export default class SavageOpressMonster extends NonLeaderUnitCard {
 
     public override setupCardAbilities() {
         this.addWhenPlayedAbility({
-            title: 'If you control fewer units than an opponent, ready this unit.',
+            title: 'Ready this unit.',
             immediateEffect: AbilityHelper.immediateEffects.conditional(
                 {
                     condition: (context) => {
