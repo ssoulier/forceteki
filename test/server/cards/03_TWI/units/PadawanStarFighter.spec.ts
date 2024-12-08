@@ -16,16 +16,12 @@ describe('Padawan Star Fighter', function () {
                 });
             });
 
-            it('should not have +1/+1 because no unit or upgrade with Force trait controlled by the player', function () {
+            it('should have +1/+1 because a unit with Force trait is controlled by player', function () {
                 const { context } = contextRef;
 
                 // Player 2 Luke should not impact Padawan Star Fighter
                 expect(context.padawanStarfighter.getHp()).toBe(3);
                 expect(context.padawanStarfighter.getPower()).toBe(1);
-            });
-
-            it('should have +1/+1 because a unit with Force trait is controlled by the player', function () {
-                const { context } = contextRef;
 
                 // Player 1 plays Obi-Wan Kenobi
                 context.player1.clickCard(context.obiwanKenobi);
