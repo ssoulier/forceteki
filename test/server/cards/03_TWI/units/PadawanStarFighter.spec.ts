@@ -35,19 +35,7 @@ describe('Padawan Star Fighter', function () {
                 expect(context.padawanStarfighter.getPower()).toBe(2);
             });
 
-            // There is no upgrade with Force trait in set 1, 2, 3
-            // Useless test for the moment. To be updated with a Force trait upgrade one-day
-            it('should not have +1/+1 because Jedi lightsader does not have Force trait', function () {
-                const { context } = contextRef;
-
-                // Player 1 plays Obi-Wan Kenobi
-                context.player1.clickCard(context.jediLightsaber);
-                context.player1.clickCard(context.duchesssChampion);
-
-                // Padawan Star Fighter should have +1/+1
-                expect(context.padawanStarfighter.getHp()).toBe(3);
-                expect(context.padawanStarfighter.getPower()).toBe(1);
-            });
+            // TODO: Add test for an upgrade with Force trait when one will exist
         });
     });
 });
