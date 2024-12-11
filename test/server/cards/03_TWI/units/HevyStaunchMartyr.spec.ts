@@ -15,6 +15,7 @@ describe('Hevy Staunch Martyr', function () {
 
                 const { context } = contextRef;
 
+                expect(context.hevy.getPower()).toBe(4);
                 context.player1.clickCard(context.hevy);
                 context.player1.clickCard(context.consularSecurityForce);
                 expect(context.consularSecurityForce.damage).toBe(6);
