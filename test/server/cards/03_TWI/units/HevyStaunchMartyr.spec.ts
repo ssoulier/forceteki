@@ -9,6 +9,7 @@ describe('Hevy Staunch Martyr', function () {
                     },
                     player2: {
                         groundArena: ['consular-security-force', 'wampa', 'fleet-lieutenant'],
+                        spaceArena: ['mining-guild-tie-fighter']
                     }
                 });
 
@@ -26,6 +27,8 @@ describe('Hevy Staunch Martyr', function () {
                 expect(context.wampa).toBeInZone('discard');
                 expect(context.consularSecurityForce).toBeInZone('discard');
                 expect(context.fleetLieutenant.damage).toBe(1);
+                expect(context.miningGuildTieFighter.damage).toBe(0);
+                expect(context.miningGuildTieFighter).toBeInZone('spaceArena');
             });
         });
     });
