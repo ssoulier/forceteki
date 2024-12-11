@@ -6,6 +6,7 @@ describe('Hevy Staunch Martyr', function () {
                     phase: 'action',
                     player1: {
                         groundArena: ['specforce-soldier', 'luke-skywalker#jedi-knight', 'hevy#staunch-martyr'],
+                        spaceArena: ['alliance-xwing']
                     },
                     player2: {
                         groundArena: ['consular-security-force', 'wampa', 'fleet-lieutenant'],
@@ -30,6 +31,10 @@ describe('Hevy Staunch Martyr', function () {
                 expect(context.fleetLieutenant.damage).toBe(1);
                 expect(context.miningGuildTieFighter.damage).toBe(0);
                 expect(context.miningGuildTieFighter).toBeInZone('spaceArena');
+
+                // But 0 damage to friendly units
+                expect(context.specforceSoldier.damage).toBe(0);
+                expect(context.allianceXwing.damage).toBe(0);
             });
         });
     });
