@@ -13,7 +13,7 @@ export default class SwordAndShieldManeuver extends EventCard {
 
     public override setupCardAbilities() {
         this.setEventAbility({
-            title: 'Give each friendly Trooper unit Raid 1 for this phase.\nGive each friendly Jedi unit Sentinel for this phase.',
+            title: 'Give each friendly Trooper unit Raid 1 for this phase. Give each friendly Jedi unit Sentinel for this phase.',
             immediateEffect: AbilityHelper.immediateEffects.simultaneous([
                 AbilityHelper.immediateEffects.forThisPhaseCardEffect((context) => ({
                     effect: AbilityHelper.ongoingEffects.gainKeyword({ keyword: KeywordName.Raid, amount: 1 }),
