@@ -1,6 +1,6 @@
 import AbilityHelper from '../../../AbilityHelper';
 import { NonLeaderUnitCard } from '../../../core/card/NonLeaderUnitCard';
-import { RelativePlayer, WildcardCardType } from '../../../core/Constants';
+import { CardType, RelativePlayer } from '../../../core/Constants';
 
 export default class ShaakTiUnityWinsWars extends NonLeaderUnitCard {
     protected override getImplementationId() {
@@ -14,14 +14,13 @@ export default class ShaakTiUnityWinsWars extends NonLeaderUnitCard {
         this.addConstantAbility({
             title: 'Each friendly token unit gets +1/+0.',
             targetController: RelativePlayer.Self,
-            targetCardTypeFilter: WildcardCardType.Unit,
-            matchTarget: (card) => card.isToken(),
+            targetCardTypeFilter: CardType.TokenUnit,
             ongoingEffect: AbilityHelper.ongoingEffects.modifyStats({ power: 1, hp: 0 })
         });
 
         this.addOnAttackAbility({
             title: 'Create a Clone Trooper token.',
-            immediateEffect: AbilityHelper.immediateEffects.createCloneTrooper({ amount: 1 })
+            immediateEffect: AbilityHelper.immediateEffects.createCloneTrooper()
         });
     }
 }

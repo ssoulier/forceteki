@@ -1,6 +1,6 @@
 describe('Shaak Ti Unity Wins Wars', function() {
     integration(function(contextRef) {
-        it('should 1 Clone Tropper token when attack and Clone Tropper must have +1 power', function () {
+        it('Shaak Ti\'s ability should should create 1 Clone Tropper token when attack and Clone Troppers must have +1 power', function () {
             contextRef.setupTest({
                 phase: 'action',
                 player1: {
@@ -19,10 +19,10 @@ describe('Shaak Ti Unity Wins Wars', function() {
 
             const cloneTroopers = context.player1.findCardsByName('clone-trooper');
             expect(cloneTroopers.length).toBe(1);
-            expect(cloneTroopers).toAllBeInZone('groundArena');
-            expect(cloneTroopers.every((cloneTrooper) => cloneTrooper.exhausted)).toBeTrue();
-            expect(cloneTroopers.every((cloneTrooper) => cloneTrooper.getPower() === 3)).toBeTrue();
-            expect(cloneTroopers.every((cloneTrooper) => cloneTrooper.getHp() === 2)).toBeTrue();
+            expect(cloneTroopers[0]).toBeInZone('groundArena');
+            expect(cloneTroopers[0].exhausted).toBeTrue();
+            expect(cloneTroopers[0].getPower()).toBe(3);
+            expect(cloneTroopers[0].getHp()).toBe(2);
         });
     });
 });
