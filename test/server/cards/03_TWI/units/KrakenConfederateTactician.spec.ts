@@ -28,15 +28,14 @@ describe('Kraken Confederate Tactician', function () {
             // Kraken attack gives +1/+1 to all friendly tokens
             context.player1.clickCard(context.kraken);
             context.player1.clickCard(context.p2Base);
-            const cloneTrooper = context.player1.findCardsByName('clone-trooper')[0];
+            const cloneTrooper = context.player1.findCardByName('clone-trooper');
             expect(cloneTrooper.getPower()).toBe(3);
             expect(cloneTrooper.getHp()).toBe(3);
 
             // Opponent's token units are not impacted
-            const opponentBattleDroids = context.player2.findCardsByName('battle-droid');
-            expect(opponentBattleDroids.length === 1).toBeTrue();
-            expect(opponentBattleDroids[0].getPower()).toBe(1);
-            expect(opponentBattleDroids[0].getHp()).toBe(1);
+            const opponentBattleDroids = context.player2.findCardByName('battle-droid');
+            expect(opponentBattleDroids.getPower()).toBe(1);
+            expect(opponentBattleDroids.getHp()).toBe(1);
 
             battleDroids = context.player1.findCardsByName('battle-droid');
             expect(battleDroids.every((battleDroid) => battleDroid.getHp() === 2)).toBeTrue();
@@ -47,11 +46,11 @@ describe('Kraken Confederate Tactician', function () {
 
             // But newly created token units are not impacted
             context.player1.clickCard(context.dropIn);
-            const cloneTroopers = context.player1.findCardsByName('battle-droid');
+            const cloneTroopers = context.player1.findCardsByName('clone-trooper').filter((cloneTrooper) => cloneTrooper.zoneName === 'groundArena');
             expect(cloneTroopers.every((cloneTrooper) => cloneTrooper.getPower() === 2)).toBeTrue();
             expect(cloneTroopers.every((cloneTrooper) => cloneTrooper.getHp() === 2)).toBeTrue();
 
-            // It remains active for the Clone Troopers
+            // It remains active for the battle droids
             battleDroids = context.player1.findCardsByName('battle-droid');
             expect(battleDroids.every((battleDroid) => battleDroid.getPower() === 2)).toBeTrue();
             expect(battleDroids.every((battleDroid) => battleDroid.getHp() === 2)).toBeTrue();
