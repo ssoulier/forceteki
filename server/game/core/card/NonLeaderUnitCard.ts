@@ -1,14 +1,13 @@
-import Player from '../Player';
+import type Player from '../Player';
 import { WithCost } from './propertyMixins/Cost';
 import { PlayUnitAction } from '../../actions/PlayUnitAction';
 import * as Contract from '../utils/Contract';
-import { CardType, KeywordName, ZoneName, PlayType } from '../Constants';
+import { CardType, ZoneName } from '../Constants';
 import { WithUnitProperties } from './propertyMixins/UnitProperties';
 import { InPlayCard } from './baseClasses/InPlayCard';
 import { WithStandardAbilitySetup } from './propertyMixins/StandardAbilitySetup';
-import PlayerOrCardAbility from '../ability/PlayerOrCardAbility';
-import { TokenOrPlayableCard } from './CardTypes';
-import { IPlayCardActionProperties, PlayCardAction } from '../ability/PlayCardAction';
+import type { TokenOrPlayableCard } from './CardTypes';
+import type { IPlayCardActionProperties } from '../ability/PlayCardAction';
 
 const NonLeaderUnitCardParent = WithUnitProperties(WithCost(WithStandardAbilitySetup(InPlayCard)));
 

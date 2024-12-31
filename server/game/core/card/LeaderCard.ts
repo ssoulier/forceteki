@@ -1,8 +1,8 @@
-import Player from '../Player';
+import type Player from '../Player';
 import { InPlayCard } from './baseClasses/InPlayCard';
 import * as Contract from '../utils/Contract';
-import { CardType, MoveZoneDestination, ZoneName } from '../Constants';
-import { PlayCardAction } from '../ability/PlayCardAction';
+import type { ZoneName } from '../Constants';
+import { CardType } from '../Constants';
 
 export class LeaderCard extends InPlayCard {
     protected _deployed = false;
