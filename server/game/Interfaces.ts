@@ -284,7 +284,7 @@ interface IAmbushKeywordProperties extends IKeywordPropertiesBase {
 
 interface IBountyKeywordProperties<TSource extends UnitCard = UnitCard> extends IKeywordWithAbilityDefinitionProperties<TSource> {
     keyword: KeywordName.Bounty;
-    ability: Omit<ITriggeredAbilityProps<TSource>, 'when' | 'aggregateWhen' | 'abilityController'>;
+    ability: Omit<ITriggeredAbilityBaseProps<TSource>, 'abilityController'>;
 }
 
 interface IGritKeywordProperties extends IKeywordPropertiesBase {
