@@ -38,7 +38,6 @@ export class ReplacementEffectSystem<TContext extends TriggeredAbilityContext = 
 
             Contract.assertFalse(events.length === 0, `Replacement effect ${replacementImmediateEffect} for ${event.name} did not generate any events`);
 
-            // TODO: refactor this to allow for "partial" replacement effects like Boba Fett's Armor or damage on draw from empty deck
             events.forEach((replacementEvent) => {
                 event.context.game.queueSimpleStep(() => {
                     event.context.event.setReplacementEvent(replacementEvent);
