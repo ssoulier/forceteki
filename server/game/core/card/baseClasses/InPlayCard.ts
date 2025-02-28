@@ -41,7 +41,7 @@ export interface IInPlayCard extends IPlayableOrDeployableCard, ICardWithCostPro
     checkUnique();
     attachTo(newParentCard: IUnitCard, newController?: Player);
     isAttached(): boolean;
-    unattach();
+    unattach(event?: any);
     canAttach(targetCard: Card, controller?: Player): boolean;
 }
 
@@ -173,11 +173,11 @@ export class InPlayCard extends InPlayCardParent implements IInPlayCard {
         return !!this._parentCard;
     }
 
-    public unattach() {
+    public unattach(event = null) {
         Contract.assertNotNullLike(this._parentCard, 'Attempting to unattach upgrade when already unattached');
         this.assertIsUpgrade();
 
-        this.parentCard.unattachUpgrade(this);
+        this.parentCard.unattachUpgrade(this, event);
         this._parentCard = null;
     }
 

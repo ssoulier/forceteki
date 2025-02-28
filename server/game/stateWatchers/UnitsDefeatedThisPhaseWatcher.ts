@@ -11,6 +11,7 @@ export interface DefeatedUnitEntry {
     unit: IUnitCard;
     inPlayId: number;
     controlledBy: Player;
+    defeatedBy?: Player;
 }
 
 interface InPlayUnit {
@@ -69,14 +70,18 @@ export class UnitsDefeatedThisPhaseWatcher extends StateWatcher<DefeatedUnitEntr
         return this.getCurrentValue().filter((entry) => entry.controlledBy === controller).length > 0;
     }
 
+    /** Check if the given player defeated an enemy unit */
+    public playerDefeatedEnemyUnit(player: Player): boolean {
+        return this.getCurrentValue().filter((entry) => entry.controlledBy !== player && entry.defeatedBy === player).length > 0;
+    }
+
     protected override setupWatcher() {
         this.addUpdater({
             when: {
                 onCardDefeated: (event) => EnumHelpers.isUnit(event.lastKnownInformation.type)
             },
-            update: (currentState: IUnitsDefeatedThisPhase, event: any) => {
-                return currentState.concat({ unit: event.card, inPlayId: event.card.mostRecentInPlayId, controlledBy: event.card.controller });
-            }
+            update: (currentState: IUnitsDefeatedThisPhase, event: any) =>
+                currentState.concat({ unit: event.card, inPlayId: event.card.mostRecentInPlayId, controlledBy: event.card.controller, defeatedBy: event.defeatSource.player })
         });
     }
 
