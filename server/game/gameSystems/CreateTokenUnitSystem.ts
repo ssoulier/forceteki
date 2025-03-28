@@ -27,10 +27,11 @@ export abstract class CreateTokenUnitSystem<TContext extends AbilityContext = Ab
     public override getEffectMessage(context: TContext): [string, any[]] {
         const properties = this.generatePropertiesFromContext(context);
 
+        const tokenTitle = context.game.cardDataGetter.tokenData[this.getTokenType()]?.title ?? this.getTokenType();
         if (properties.amount === 1) {
-            return ['{0} creates a {1}', [properties.target, this.getTokenType()]];
+            return ['create a {0}', [tokenTitle]];
         }
-        return ['{0} creates {1} {2}s', [properties.target, properties.amount, this.getTokenType()]];
+        return ['create {0} {1}s', [properties.amount, tokenTitle]];
     }
 
     protected abstract getTokenType(): TokenUnitName;
