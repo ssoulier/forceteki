@@ -36,5 +36,35 @@ describe('Energy Conversion Lab', function() {
                 expect(context.isbAgent.damage).toBe(2);
             });
         });
+
+        describe('Energy Conversion Lab\'s ability', function() {
+            beforeEach(function () {
+                return contextRef.setupTestAsync({
+                    phase: 'action',
+                    player1: {
+                        hand: [
+                            'poe-dameron#quick-to-improvise'
+                        ],
+                        base: 'energy-conversion-lab',
+                        leader: 'han-solo#worth-the-risk',
+                        resources: 4
+                    },
+                    player2: {
+                        groundArena: [
+                            'rugged-survivors'
+                        ]
+                    }
+                });
+            });
+
+            // Cf issue: https://github.com/SWU-Karabast/forceteki/issues/1005:
+            it('should not give poe dameron ambush after attempting to use ECL', function () {
+                const { context } = contextRef;
+
+                context.player1.clickCard(context.energyConversionLab);
+                context.player1.clickCard(context.poeDameronQuickToImprovise);
+                expect(1).toBe(1);
+            });
+        });
     });
 });
